@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local Stitch design exports
+/stitch-assets/
+.cursor/mcp.json
