@@ -12,7 +12,7 @@
 | Package name | `migr8-ai-frontend` |
 | Repo path | `MIGR8_AI_frontend/` (workspace: `MIGR8 AI frontend`) |
 | Purpose | Frontend for MIGR8 AI — SAP data migration assistant (UI from Google Stitch) |
-| Status | Auth + dashboard + Field Mapping setup screens implemented (mock/static data) |
+| Status | Auth + dashboard + Field Mapping + Validation flows implemented (mock/static data) |
 | Design source | Stitch project **Remix of MIGR8 AI Migration Assistant** (`11703829461598989849`) |
 
 ---
@@ -49,13 +49,20 @@
 | `/register` | Register | Standalone auth layout; linked ↔ Sign In |
 | `/dashboard` | Migration Control Center | Uses shared `AppShell` |
 | `/field-mapping` | AI Field Mapping Setup | Uses shared `AppShell`; reached from sidebar |
+| `/validation` | Validation runs list | Prior runs + **New Validation**; `AppShell` |
+| `/validation/new` | Advanced Validation & Results | Stitch rules setup; from New Validation |
+| `/validation_result/[id]` | Validation Results Analysis | Per-run results; from prior run or Run Validation |
 
 ### App shell UX
 
 1. User lands on **Dashboard** (`/dashboard`).
 2. Sidebar / topbar stay mounted via `AppShell`.
-3. Clicking a nav item (e.g. **Field Mapping**) replaces **main content only**.
+3. Clicking a nav item replaces **main content only**.
 4. Sidebar active state is derived from `usePathname()` (not hard-coded).
+5. **Validation flow:**
+   - `/validation` (runs list) → click a prior run → `/validation_result/[id]`
+   - `/validation` → **New Validation** → `/validation/new` → **Run Validation Rules** → `/validation_result/run-new`
+6. Validation sidebar item stays active on `/validation*` and `/validation_result*`.
 
 ### Sidebar nav labels (current)
 
@@ -63,7 +70,7 @@
 | --- | --- |
 | Dashboard | `/dashboard` |
 | Migration Projects | `#` (parent) |
-| → Validation | `#` (TBD) |
+| → Validation | `/validation` (+ `/validation_result/*`) |
 | → Comparison(Postload <-> Preload) | `#` (TBD) |
 | → Field Mapping | `/field-mapping` |
 | → Reports | `#` (TBD) |
@@ -83,17 +90,25 @@ MIGR8_AI_frontend/
 │   ├── register/page.tsx
 │   ├── dashboard/page.tsx
 │   ├── field-mapping/page.tsx
+│   ├── validation/
+│   │   ├── page.tsx          # Previous validation runs
+│   │   └── new/page.tsx      # Advanced Validation & Results
+│   ├── validation_result/
+│   │   └── [id]/page.tsx    # Validation Results Analysis
 │   └── favicon.ico
 ├── components/
 │   ├── auth/                 # Sign-in / register cards & forms
 │   ├── brand/                # Migr8Logo
 │   ├── dashboard/            # KPI grid, recent projects, readiness
 │   ├── field-mapping/        # Schema upload panels + setup view
+│   ├── validation/           # Runs list, rules, results analysis
 │   ├── layout/               # AppShell, AppSidebar, AppTopbar
-│   └── ui/                   # Button, TextField, icons, progress, password meter
+│   └── ui/                   # Button, TextField, dialog, icons, progress
 ├── data/
 │   ├── dashboard.ts          # Nav + dashboard mock metrics/projects
-│   └── field-mapping.ts      # Field mapping mock copy / cards
+│   ├── field-mapping.ts      # Field mapping mock copy / cards
+│   ├── validation.ts         # Validation runs + field rules mock data
+│   └── validation-results.ts # Per-run results mock data
 ├── public/
 │   ├── brand/                # Logo asset
 │   └── avatars/              # User avatar
@@ -137,6 +152,9 @@ Shared UI: `Button`, `TextField`, icons, `ProgressBar` / `CircularProgress`, `Pa
 | Register | `888050980ca440b6bf42cabe82fba5ad` | `/register` |
 | Migration Control Center Dashboard | `262acc49650e4ca98c8d45cc00ba8aa9` | `/dashboard` |
 | AI Field Mapping Setup | `cac35d70b9ca451cb5af37e5f88875e4` | `/field-mapping` |
+| Advanced Validation & Results | `5861531b2f924a2abb62e112ceacda14` | `/validation/new` |
+| Advanced Validation Rules Configuration | `674ecec8e0304b25ab8ea3aabacfa8c1` | Dialog on `/validation/new` (Define Rules) |
+| Validation Results Analysis (Updated Nav) | `38ab412ecfeb44d998088e41c2089e31` | `/validation_result/[id]` |
 
 ---
 
@@ -152,6 +170,27 @@ npm run lint     # ESLint
 ---
 
 ## Session Log
+
+### 2026-08-12 — Validation Results Analysis
+
+- Implemented `/validation_result/[id]` from Stitch **Validation Results Analysis (Updated Nav)** (`38ab412ecfeb44d998088e41c2089e31`).
+- Prior runs on `/validation` link to `/validation_result/{run.id}`.
+- **Run Validation Rules** on `/validation/new` navigates to `/validation_result/run-new`.
+- Mock per-run summaries in `data/validation-results.ts`; Validation nav stays active via `matchPrefixes`.
+
+### 2026-08-12 — Advanced Validation Rules Configuration dialog
+
+- Stitch screen **Advanced Validation Rules Configuration** (`674ecec8e0304b25ab8ea3aabacfa8c1`) implemented as a modal on `/validation/new`.
+- **Define Rules** opens dialog; **Apply Rules** writes tags onto the field row.
+- Data types: `char | int | decimal | string | boolean`.
+- Length disabled for `string` (max 255 when enabled); Decimal Length only when `decimal`.
+
+### 2026-08-12 — Validation runs + Advanced Validation & Results
+
+- `/validation`: simple previous-runs list + **New Validation** (not Stitch-advanced).
+- `/validation/new`: Stitch **Advanced Validation & Results** (`5861531b2f924a2abb62e112ceacda14`) — upload zone, rules table, sticky Save Draft / Run Validation.
+- Sidebar **Validation** → `/validation`; active for `/validation/*` via pathname.
+- Reuses `AppShell`; topbar supports `topbarLeading` for project breadcrumb.
 
 ### 2026-08-12 — Project.md refresh + Field Mapping nav labels
 
@@ -206,7 +245,8 @@ npm run lint     # ESLint
 
 ## Open Questions / TBD
 
-- Wire remaining sidebar routes: Validation, Comparison, Reports, Profile, Settings
+- Validation results analysis screen after **Run Validation Rules** ✅ (`/validation_result/[id]`)
+- Wire remaining sidebar routes: Comparison, Reports, Profile, Settings
 - Post–schema-upload Field Mapping workspace / mapping results screens
 - Replace placeholder `/` home (redirect to `/sign-in` or `/dashboard`?)
 - Real auth + API contracts

@@ -8,12 +8,14 @@ import { CloseIcon } from "@/components/ui/icons";
 type AppShellProps = {
   children: ReactNode;
   topbarTitle?: string;
+  topbarLeading?: ReactNode;
   mainClassName?: string;
 };
 
 export function AppShell({
   children,
   topbarTitle,
+  topbarLeading,
   mainClassName = "flex-1 bg-background p-4 md:p-6",
 }: AppShellProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -49,6 +51,7 @@ export function AppShell({
       <div className="flex min-h-screen flex-1 flex-col md:ml-64">
         <AppTopbar
           title={topbarTitle}
+          leading={topbarLeading}
           onMenuClick={() => setMobileOpen(true)}
         />
         <main className={mainClassName}>{children}</main>

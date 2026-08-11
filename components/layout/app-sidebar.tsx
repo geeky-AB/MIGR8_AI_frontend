@@ -37,9 +37,13 @@ type AppSidebarProps = {
   onNavigate?: () => void;
 };
 
-function isActivePath(pathname: string, href: string) {
-  if (!href || href === "#") return false;
-  return pathname === href || pathname.startsWith(`${href}/`);
+function isActivePath(pathname: string, item: NavItem) {
+  const prefixes = item.matchPrefixes ?? [];
+  if (prefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) {
+    return true;
+  }
+  if (!item.href || item.href === "#") return false;
+  return pathname === item.href || pathname.startsWith(`${item.href}/`);
 }
 
 function NavLink({
@@ -112,7 +116,7 @@ export function AppSidebar({ className = "", onNavigate }: AppSidebarProps) {
           <div key={item.label} className="space-y-1">
             <NavLink
               item={item}
-              active={isActivePath(pathname, item.href)}
+              active={isActivePath(pathname, item)}
               onNavigate={onNavigate}
             />
             {item.children ? (
@@ -122,7 +126,7 @@ export function AppSidebar({ className = "", onNavigate }: AppSidebarProps) {
                     key={child.label}
                     item={child}
                     nested
-                    active={isActivePath(pathname, child.href)}
+                    active={isActivePath(pathname, child)}
                     onNavigate={onNavigate}
                   />
                 ))}
@@ -137,7 +141,7 @@ export function AppSidebar({ className = "", onNavigate }: AppSidebarProps) {
           <NavLink
             key={item.label}
             item={item}
-            active={isActivePath(pathname, item.href)}
+            active={isActivePath(pathname, item)}
             onNavigate={onNavigate}
           />
         ))}

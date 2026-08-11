@@ -23,9 +23,12 @@
   --outline-variant: #c2c6d5;
   --error: #ba1a1a;
   --error-container: #ffdad6;
+  --on-error-container: #93000a;
   --tertiary: #8a3500;
   --tertiary-container: #b14600;
   --success: #10b981;
+  --surface-container-highest: #dce2f7;
+  --surface-tint: #005bc0;
 }
 
 @theme inline {
@@ -50,9 +53,12 @@
   --color-outline-variant: var(--outline-variant);
   --color-error: var(--error);
   --color-error-container: var(--error-container);
+  --color-on-error-container: var(--on-error-container);
   --color-tertiary: var(--tertiary);
   --color-tertiary-container: var(--tertiary-container);
   --color-success: var(--success);
+  --color-surface-container-highest: var(--surface-container-highest);
+  --color-surface-tint: var(--surface-tint);
 
   --font-sans: var(--font-hanken-grotesk), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;

@@ -11,6 +11,7 @@ export type NavItem = {
     | "account"
     | "settings";
   active?: boolean;
+  matchPrefixes?: string[];
   children?: NavItem[];
 };
 
@@ -25,7 +26,12 @@ export const SIDEBAR_NAV: NavItem[] = [
     href: "#",
     icon: "dataset",
     children: [
-      { label: "Validation", href: "#", icon: "rule" },
+      {
+        label: "Validation",
+        href: "/validation",
+        icon: "rule",
+        matchPrefixes: ["/validation", "/validation_result"],
+      },
       { label: "Comparison(Postload <-> Preload)", href: "#", icon: "compare" },
       { label: "Field Mapping", href: "/field-mapping", icon: "hub" },
       { label: "Reports", href: "#", icon: "analytics" },
