@@ -1,7 +1,7 @@
 "use client";
 
 import type { ChangeEvent, ComponentType } from "react";
-import { useRef, useState } from "react";
+import { useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { SchemaIcon, UploadFileIcon } from "@/components/ui/icons";
 import type { SchemaUploadCard } from "@/data/field-mapping";
@@ -16,11 +16,16 @@ const iconMap: Record<
 
 type SchemaUploadPanelProps = {
   card: SchemaUploadCard;
+  file: File | null;
+  onFileSelected: (file: File) => void;
 };
 
-export function SchemaUploadPanel({ card }: SchemaUploadPanelProps) {
+export function SchemaUploadPanel({
+  card,
+  file,
+  onFileSelected,
+}: SchemaUploadPanelProps) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [fileName, setFileName] = useState<string | null>(null);
   const Icon = iconMap[card.icon];
 
   function handleSelectClick() {
@@ -28,11 +33,10 @@ export function SchemaUploadPanel({ card }: SchemaUploadPanelProps) {
   }
 
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    // Mock upload — no backend yet
-    setFileName(file.name);
-    console.info(`${card.id} schema selected`, { name: file.name });
+    const selected = event.target.files?.[0];
+    if (!selected) return;
+    // Local selection only — nothing is sent until "Start Mapping" is clicked.
+    onFileSelected(selected);
   }
 
   return (
@@ -64,7 +68,7 @@ export function SchemaUploadPanel({ card }: SchemaUploadPanelProps) {
       </Button>
 
       <p className="mt-2 text-[13px] leading-[18px] text-outline">
-        {fileName ? `Selected: ${fileName}` : card.supportedFormats}
+        {file ? `Selected: ${file.name}` : card.supportedFormats}
       </p>
     </div>
   );
