@@ -1,38 +1,59 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AddCircleIcon, CloseIcon } from "@/components/ui/icons";
 import { AdvancedRulesDialog } from "@/components/validation/advanced-rules-dialog";
 import {
   RULE_COLUMNS,
-  VALIDATION_FIELD_RULES,
   buildRuleTags,
+  DEFAULT_FIELD_RULE_CONFIG,
   type FieldRuleConfig,
   type RuleFlag,
   type ValidationFieldRule,
 } from "@/data/validation";
 
-function cloneRules(rules: ValidationFieldRule[]) {
-  return rules.map((rule) => ({
-    ...rule,
-    tags: [...rule.tags],
-    config: { ...rule.config },
-    flags: { ...rule.flags },
+type ValidationRulesTableProps = {
+  fields: string[];
+  onRulesChange: (rows: ValidationFieldRule[]) => void;
+};
+
+function buildDefaultRows(fields: string[]): ValidationFieldRule[] {
+  return fields.map((name, i) => ({
+    id: `field-${i}-${name}`,
+    fieldName: name,
+    tags: [],
+    config: { ...DEFAULT_FIELD_RULE_CONFIG },
+    flags: {
+      key: false,
+      mandatory: false,
+      null: false,
+      email: false,
+      mobile: false,
+      date: false,
+      specialChars: false,
+    },
   }));
 }
 
-export function ValidationRulesTable() {
-  const [rows, setRows] = useState(() => cloneRules(VALIDATION_FIELD_RULES));
+export function ValidationRulesTable({ fields, onRulesChange }: ValidationRulesTableProps) {
+  const [rows, setRows] = useState<ValidationFieldRule[]>(() => buildDefaultRows(fields));
   const [activeFieldId, setActiveFieldId] = useState<string | null>(null);
+
+  // Rebuild rows whenever a new file is uploaded and real fields come in.
+  useEffect(() => {
+    setRows(buildDefaultRows(fields));
+  }, [fields]);
+
+  useEffect(() => {
+    onRulesChange(rows);
+  }, [rows, onRulesChange]);
 
   const activeRow = rows.find((row) => row.id === activeFieldId) ?? null;
 
   function toggleFlag(rowId: string, flag: RuleFlag) {
     setRows((current) =>
       current.map((row) =>
-        row.id === rowId
-          ? { ...row, flags: { ...row.flags, [flag]: !row.flags[flag] } }
-          : row,
+        row.id === rowId ? { ...row, flags: { ...row.flags, [flag]: !row.flags[flag] } } : row,
       ),
     );
   }
@@ -40,32 +61,27 @@ export function ValidationRulesTable() {
   function removeTag(rowId: string, tag: string) {
     setRows((current) =>
       current.map((row) =>
-        row.id === rowId
-          ? { ...row, tags: row.tags.filter((item) => item !== tag) }
-          : row,
+        row.id === rowId ? { ...row, tags: row.tags.filter((item) => item !== tag) } : row,
       ),
     );
-  }
-
-  function handleAddCustomRule() {
-    console.info("Add Custom Rule clicked (mock)");
   }
 
   function handleApplyRules(config: FieldRuleConfig) {
     if (!activeFieldId) return;
-
     setRows((current) =>
       current.map((row) =>
-        row.id === activeFieldId
-          ? {
-              ...row,
-              config: { ...config },
-              tags: buildRuleTags(config),
-            }
-          : row,
+        row.id === activeFieldId ? { ...row, config: { ...config }, tags: buildRuleTags(config) } : row,
       ),
     );
     setActiveFieldId(null);
+  }
+
+  if (fields.length === 0) {
+    return (
+      <div className="mb-8 rounded-2xl border border-dashed border-outline-variant p-6 text-center text-sm text-on-surface-variant">
+        Upload a source file above to see its columns here.
+      </div>
+    );
   }
 
   return (
@@ -75,14 +91,7 @@ export function ValidationRulesTable() {
           <h3 className="text-xl font-semibold leading-7 text-on-surface">
             Validation Rules Configuration
           </h3>
-          <button
-            type="button"
-            onClick={handleAddCustomRule}
-            className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-[0.02em] leading-4 text-primary hover:underline"
-          >
-            <AddCircleIcon className="h-[18px] w-[18px]" />
-            Add Custom Rule
-          </button>
+          <span className="text-xs text-on-surface-variant">{fields.length} columns detected</span>
         </div>
 
         <div className="-mx-4 overflow-x-auto sm:-mx-6">
@@ -107,10 +116,7 @@ export function ValidationRulesTable() {
             </thead>
             <tbody className="divide-y divide-outline-variant/30 text-[13px] leading-[18px] text-on-surface">
               {rows.map((row) => (
-                <tr
-                  key={row.id}
-                  className="transition-colors hover:bg-surface-container-low/50"
-                >
+                <tr key={row.id} className="transition-colors hover:bg-surface-container-low/50">
                   <td className="px-4 py-3">
                     <div className="font-medium">{row.fieldName}</div>
                     {row.tags.length > 0 ? (

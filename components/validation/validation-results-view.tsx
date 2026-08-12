@@ -13,6 +13,7 @@ import {
   TrendingUpIcon,
   WarningIcon,
 } from "@/components/ui/icons";
+import apiClient from "@/lib/axios";
 import type {
   ExceptionSeverity,
   ValidationException,
@@ -174,6 +175,7 @@ function SeverityBadge({ severity }: { severity: ExceptionSeverity }) {
 
 export function ValidationResultsView({ result }: ValidationResultsViewProps) {
   const [query, setQuery] = useState("");
+  const [downloading, setDownloading] = useState(false);
 
   const filteredExceptions = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -186,8 +188,21 @@ export function ValidationResultsView({ result }: ValidationResultsViewProps) {
     );
   }, [query, result.exceptions]);
 
-  function handleDownload() {
-    console.info("Download report clicked (mock)", { id: result.id });
+  // Fetches a presigned S3 URL for the annotated workbook (same format as the
+  // uploaded file, failed cells highlighted red, extra reason column at the end)
+  // and opens it directly — no file passes through our own server.
+  async function handleDownload() {
+    setDownloading(true);
+    try {
+      const { data } = await apiClient.get<{ url: string }>(
+        `/api/runs/${result.id}/download-url`,
+      );
+      window.open(data.url, "_blank");
+    } catch (err) {
+      console.error("Download failed", err);
+    } finally {
+      setDownloading(false);
+    }
   }
 
   return (
@@ -205,10 +220,11 @@ export function ValidationResultsView({ result }: ValidationResultsViewProps) {
         <button
           type="button"
           onClick={handleDownload}
-          className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-xs font-semibold uppercase tracking-[0.02em] text-on-primary shadow-ambient transition-colors hover:bg-surface-tint"
+          disabled={downloading}
+          className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-xs font-semibold uppercase tracking-[0.02em] text-on-primary shadow-ambient transition-colors hover:bg-surface-tint disabled:opacity-60"
         >
           <DownloadIcon className="h-[18px] w-[18px]" />
-          Download Exception Report
+          {downloading ? "Preparing..." : "Download Exception Report"}
         </button>
       </div>
 
@@ -359,7 +375,8 @@ export function ValidationResultsView({ result }: ValidationResultsViewProps) {
           <button
             type="button"
             onClick={handleDownload}
-            className="inline-flex items-center gap-1 rounded-lg border border-outline-variant px-4 py-2 text-xs font-semibold uppercase tracking-[0.02em] text-on-surface transition-colors hover:bg-surface-container-high"
+            disabled={downloading}
+            className="inline-flex items-center gap-1 rounded-lg border border-outline-variant px-4 py-2 text-xs font-semibold uppercase tracking-[0.02em] text-on-surface transition-colors hover:bg-surface-container-high disabled:opacity-60"
           >
             <DescriptionIcon className="h-[18px] w-[18px]" />
             Download Full Report (.xlsx)

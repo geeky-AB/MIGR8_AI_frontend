@@ -91,7 +91,10 @@ function withSelectedProjectLabel(items: NavItem[], projectName: string) {
 export function AppSidebar({ className = "", onNavigate }: AppSidebarProps) {
   const pathname = usePathname();
   const { selectedProject } = useProject();
-  const navItems = withSelectedProjectLabel(SIDEBAR_NAV, selectedProject.name);
+  const navItems = withSelectedProjectLabel(
+    SIDEBAR_NAV,
+    selectedProject?.name ?? "Migration Projects",
+  );
 
   return (
     <nav

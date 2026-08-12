@@ -1,4 +1,4 @@
-import axios, { type AxiosInstance } from "axios";
+import axios, { type AxiosError, type AxiosInstance } from "axios";
 import { clearSession, getToken } from "@/lib/auth-storage";
 
 const API_BASE_URL =
@@ -25,6 +25,14 @@ function shouldSkip401Redirect(url?: string) {
 
 apiClient.interceptors.request.use(
   (config) => {
+    const token = getToken();
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    // Let the browser set multipart boundary for FormData uploads
+    if (typeof FormData !== "undefined" && config.data instanceof FormData) {
+      delete config.headers["Content-Type"];
+    }
     const token = getToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { VisibilityIcon, VisibilityOffIcon } from "@/components/ui/icons";
@@ -34,6 +35,7 @@ export function RegisterForm() {
   const [pending, setPending] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
     setPending(true);
@@ -54,6 +56,10 @@ export function RegisterForm() {
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-6" noValidate>
+      {error && (
+        <p className="rounded bg-error-container/20 px-3 py-2 text-sm text-error">{error}</p>
+      )}
+
       <TextField
         id="fullName"
         name="fullName"

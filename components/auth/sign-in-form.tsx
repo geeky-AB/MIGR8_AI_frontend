@@ -33,6 +33,7 @@ export function SignInForm() {
   const [pending, setPending] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
     setPending(true);
@@ -50,6 +51,10 @@ export function SignInForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6" noValidate>
+      {error && (
+        <p className="rounded bg-error-container/20 px-3 py-2 text-sm text-error">{error}</p>
+      )}
+
       <TextField
         id="email"
         name="email"

@@ -8,7 +8,7 @@ import { AddIcon, DatasetIcon } from "@/components/ui/icons";
 import { useProject } from "@/contexts/project-context";
 
 export function ProjectsView() {
-  const { projects, selectedProject, selectProject } = useProject();
+  const { projects, selectedProject, selectProject, loading } = useProject();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
   return (
@@ -42,43 +42,51 @@ export function ProjectsView() {
           </div>
 
           <div className="divide-y divide-outline-variant">
-            {projects.map((project) => {
-              const isSelected = project.id === selectedProject.id;
+            {loading ? (
+              <p className="p-4 text-sm text-on-surface-variant">Loading projects...</p>
+            ) : projects.length === 0 ? (
+              <p className="p-4 text-sm text-on-surface-variant">
+                No projects yet. Create one to start validation.
+              </p>
+            ) : (
+              projects.map((project) => {
+                const isSelected = project.id === selectedProject?.id;
 
-              return (
-                <button
-                  key={project.id}
-                  type="button"
-                  onClick={() => selectProject(project.id)}
-                  className={[
-                    "flex w-full flex-col gap-3 p-4 text-left transition-colors sm:flex-row sm:items-center sm:justify-between",
-                    isSelected
-                      ? "bg-primary-container/10"
-                      : "hover:bg-surface-container-low",
-                  ].join(" ")}
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded bg-primary-container/10 text-primary">
-                      <DatasetIcon className="h-5 w-5" />
+                return (
+                  <button
+                    key={project.id}
+                    type="button"
+                    onClick={() => selectProject(project.id)}
+                    className={[
+                      "flex w-full flex-col gap-3 p-4 text-left transition-colors sm:flex-row sm:items-center sm:justify-between",
+                      isSelected
+                        ? "bg-primary-container/10"
+                        : "hover:bg-surface-container-low",
+                    ].join(" ")}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded bg-primary-container/10 text-primary">
+                        <DatasetIcon className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <p className="text-base font-semibold leading-6 text-on-surface">
+                          {project.name}
+                        </p>
+                        <p className="mt-1 font-mono text-xs font-medium leading-4 text-on-surface-variant">
+                          {project.updated}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-base font-semibold leading-6 text-on-surface">
-                        {project.name}
-                      </p>
-                      <p className="mt-1 font-mono text-xs font-medium leading-4 text-on-surface-variant">
-                        {project.updated}
-                      </p>
-                    </div>
-                  </div>
 
-                  {isSelected ? (
-                    <span className="rounded bg-primary-container/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary">
-                      Selected
-                    </span>
-                  ) : null}
-                </button>
-              );
-            })}
+                    {isSelected ? (
+                      <span className="rounded bg-primary-container/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary">
+                        Selected
+                      </span>
+                    ) : null}
+                  </button>
+                );
+              })
+            )}
           </div>
         </SectionCard>
       </div>

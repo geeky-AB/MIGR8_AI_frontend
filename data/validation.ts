@@ -68,6 +68,7 @@ export type FieldRuleConfig = {
   length: number | null;
   decimalLength: number | null;
   regex: string;
+  regexPrompt: string; // plain-English rule; Groq generates regex
 };
 
 export type ValidationFieldRule = {
@@ -125,6 +126,7 @@ export const DEFAULT_FIELD_RULE_CONFIG: FieldRuleConfig = {
   length: null,
   decimalLength: null,
   regex: "",
+  regexPrompt: "",
 };
 
 const customerIdConfig: FieldRuleConfig = {
@@ -133,6 +135,7 @@ const customerIdConfig: FieldRuleConfig = {
   length: 10,
   decimalLength: null,
   regex: "^[A-Z0-9]+$",
+  regexPrompt: "",
 };
 
 export const VALIDATION_FIELD_RULES: ValidationFieldRule[] = [

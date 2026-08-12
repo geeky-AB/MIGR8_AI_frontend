@@ -12,9 +12,11 @@
 | Package name | `migr8-ai-frontend` |
 | Repo path | `MIGR8_AI_frontend/` (workspace: `MIGR8 AI frontend`) |
 | Purpose | Frontend for MIGR8 AI — SAP data migration assistant (UI from Google Stitch) |
-| Status | JWT auth wired (sign-in/register → token + user context + protected routes); dashboard and validation/field-mapping/comparison flows still use mock data for domain APIs |
+| Status | JWT auth + protected routes; projects + validation wired to FastAPI via axios; field-mapping / comparison mostly mock |
 | Design source | Stitch project **Remix of MIGR8 AI Migration Assistant** (`11703829461598989849`) |
-| Git | `main` — scaffold → core screens → validation → field mapping E2E → comparison E2E → axios |
+| Git | `main` — UI flows + axios; auth/validation/projects API wiring |
+| API base | `NEXT_PUBLIC_API_BASE_URL` (default `http://localhost:8000`) |
+| Auth storage | `localStorage` key `migr8_token` |
 
 ---
 
@@ -32,7 +34,7 @@
 | Path alias | `@/*` → project root | Configured in `tsconfig.json` |
 | Design tooling | **Stitch MCP** (`@_davideast/stitch-mcp`) | Source of truth for UI |
 | HTTP client | **Axios 1.x** | Shared instance in `lib/axios.ts` |
-| Backend (planned) | **Python FastAPI** | Base URL via `NEXT_PUBLIC_API_BASE_URL` |
+| Backend | **Python FastAPI** | Auth, projects, validation live; field-mapping / comparison APIs TBD |
 
 ### Explicit non-choices (for now)
 
@@ -215,6 +217,10 @@ MIGR8_AI_frontend/
 │   │   ├── app-shell.tsx        # Sidebar + topbar + mobile drawer
 │   │   ├── app-sidebar.tsx
 │   │   └── app-topbar.tsx
+│   ├── projects/
+│   │   ├── projects-view.tsx
+│   │   └── create-project-dialog.tsx
+│   ├── providers.tsx            # AuthProvider → ProjectProvider
 │   └── ui/
 │       ├── button.tsx
 │       ├── text-field.tsx
@@ -263,9 +269,9 @@ MIGR8_AI_frontend/
 Shared axios instance: `lib/axios.ts`. Import and use for all backend calls:
 
 ```ts
-import apiClient from "@/lib/axios";
+import apiClient, { setToken, clearToken, getApiErrorMessage } from "@/lib/axios";
 
-const { data } = await apiClient.get("/api/validation/runs");
+const { data } = await apiClient.get("/api/projects/");
 await apiClient.post("/api/auth/login", { email, password });
 ```
 
@@ -274,7 +280,20 @@ await apiClient.post("/api/auth/login", { email, password });
 | Env var | `NEXT_PUBLIC_API_BASE_URL` |
 | Default | `http://localhost:8000` (FastAPI dev default) |
 | Local config | `.env.local` (gitignored) |
-| Template | `.env.example` (committed) |
+| Auth header | `Authorization: Bearer <migr8_token>` via request interceptor |
+| Token storage | `localStorage` key `migr8_token` |
+| Selected project | `localStorage` key `migr8_selected_project_id` |
+
+### Wired vs mock
+
+| Area | Status |
+| --- | --- |
+| Auth (`/sign-in`, `/register`, `/api/auth/me`) | Live |
+| Projects (`/projects` list + create) | Live via `ProjectProvider` |
+| Validation list / upload / rules / execute / results / download | Live |
+| Field mapping / comparison | UI mock (friend's screens) |
+
+`AppProviders` wraps `AuthProvider` → `ProjectProvider`. Validation uses `useDefaultProject()` which reads the selected project from context.
 
 Notes:
 - `NEXT_PUBLIC_` prefix is required for client components (`"use client"`).
