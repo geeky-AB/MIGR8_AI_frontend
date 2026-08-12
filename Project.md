@@ -12,9 +12,9 @@
 | Package name | `migr8-ai-frontend` |
 | Repo path | `MIGR8_AI_frontend/` (workspace: `MIGR8 AI frontend`) |
 | Purpose | Frontend for MIGR8 AI — SAP data migration assistant (UI from Google Stitch) |
-| Status | Auth, dashboard, full validation flow, and full field mapping flow (runs → setup → workspace) implemented (mock/static data); axios API client scaffolded for FastAPI backend |
+| Status | Auth, dashboard, and full validation, field mapping, and comparison flows (runs → setup → results) implemented (mock/static data); axios API client scaffolded for FastAPI backend |
 | Design source | Stitch project **Remix of MIGR8 AI Migration Assistant** (`11703829461598989849`) |
-| Git | `main` — scaffold → core screens → validation UI → axios → field mapping flow |
+| Git | `main` — scaffold → core screens → validation → field mapping E2E → comparison E2E → axios |
 
 ---
 
@@ -83,12 +83,13 @@
 
 ### Sidebar nav labels (current)
 
-Defined in `data/dashboard.ts` (`SIDEBAR_NAV`, `SIDEBAR_FOOTER_NAV`):
+Defined in `data/dashboard.ts` (`SIDEBAR_NAV`, `SIDEBAR_FOOTER_NAV`); rendered in `components/layout/app-sidebar.tsx`:
 
 | Label | Href |
 | --- | --- |
+| **Projects** (top button) | — (mock; no route yet) |
 | Dashboard | `/dashboard` |
-| Migration Projects | `#` (parent) |
+| Project 1 | `#` (parent) |
 | → Validation | `/validation` (+ `/validation_result/*`) |
 | → Comparison(Postload <-> Preload) | `/compare` |
 | → Field Mapping | `/field-mapping` |
@@ -133,6 +134,24 @@ Defined in `data/dashboard.ts` (`SIDEBAR_NAV`, `SIDEBAR_FOOTER_NAV`):
 | Target Field List | File upload — **Select Target File**; **OR** divider + **Fetch from SAP** (table name input + **Fetch** button, mock) |
 
 Topbar: `AI Mapping: Upload Source & Target Schemas` (`FIELD_MAPPING_TOPBAR_TITLE`).
+
+### Comparison setup (`/compare/new`)
+
+| Card | Key UI |
+| --- | --- |
+| Upload Preload File | Dashed upload zone (primary) — **Select File** |
+| Upload Postload File | Dashed upload zone (secondary) — **Select File** |
+| Conditional metadata | **Have Field Mapping?** checkbox reveals per-card metadata upload (JSON, CSV) |
+
+Topbar: project name breadcrumb (`COMPARISON_PROJECT_NAME`). **Run Reconciliation** → `/compare/cmp-new`.
+
+### Comparison review (`/compare/[id]`)
+
+| Section | Key UI |
+| --- | --- |
+| Summary cards | Matched Records, Different, Missing |
+| Discrepancy table | Business Key, Field, Preload/Postload values, Difference Type, Status |
+| Actions | Download Comparison Report (mock), View Exceptions (scroll to table) |
 
 ---
 
@@ -200,7 +219,7 @@ MIGR8_AI_frontend/
 │       ├── button.tsx
 │       ├── text-field.tsx
 │       ├── dialog.tsx
-│       ├── icons.tsx            # Shared SVG icons (incl. Tag, Phone, Help, Check)
+│       ├── icons.tsx            # Shared SVG icons (incl. Tag, Phone, Help, Check, Info)
 │       ├── progress.tsx         # ProgressBar + CircularProgress
 │       └── password-strength-meter.tsx
 ├── data/
@@ -266,7 +285,7 @@ Notes:
 | --- | --- | --- |
 | `children` | `ReactNode` | Main page content |
 | `topbarTitle` | `string?` | Replaces search bar with a page title |
-| `topbarLeading` | `ReactNode?` | Custom breadcrumb / project label (validation + workspace routes) |
+| `topbarLeading` | `ReactNode?` | Custom breadcrumb / project label (validation, field-mapping workspace, comparison routes) |
 | `mainClassName` | `string?` | Override main padding/layout (e.g. sticky footers on validation/field-mapping) |
 
 ---
@@ -287,7 +306,7 @@ Tokens live in `app/globals.css` (`:root` + `@theme inline`). Key values:
 | `--tertiary` | `#8a3500` | Warnings / mismatches |
 | `--success` | `#10b981` | Strong password / success badges |
 
-Shared UI: `Button`, `TextField`, `Dialog`, icons (`TagIcon`, `PhoneIcon`, `HelpIcon`, `CheckIcon`, etc.), `ProgressBar` / `CircularProgress`, `PasswordStrengthMeter`, `SectionCard`.
+Shared UI: `Button`, `TextField`, `Dialog`, icons (`TagIcon`, `PhoneIcon`, `HelpIcon`, `CheckIcon`, `InfoIcon`, etc.), `ProgressBar` / `CircularProgress`, `PasswordStrengthMeter`, `SectionCard`.
 
 ---
 
@@ -321,6 +340,12 @@ npm run lint     # ESLint
 
 ## Session Log
 
+### 2026-08-13 — Project.md full refresh (comparison E2E complete)
+
+- Brought Overview, routes, comparison setup/review sections, mock IDs, structure, and sidebar labels in line with latest codebase.
+- Documented full comparison flow: runs list → upload setup → exception review.
+- Updated sidebar parent label to **Project 1**; topbar button to **Projects**.
+
 ### 2026-08-12 — Reconciliation & Exception Review (`/compare/[id]`)
 
 - Implemented `/compare/[id]` from Stitch **Reconciliation & Exception Review (Updated Nav)** (`d2bc367f18d44a228e999f0b91ac1d5a`).
@@ -332,13 +357,13 @@ npm run lint     # ESLint
 
 - Implemented `/compare/new` from Stitch **Reconciliation Upload with Conditional Metadata** (`f9ae00b981bb4b9faf0cd90736646cc2`).
 - Preload/postload dashed upload cards with conditional field metadata sections.
-- **Have Field Mapping?** checkbox toggles metadata upload UI; **Run Reconciliation** in page header (mock).
+- **Have Field Mapping?** checkbox toggles metadata upload UI; **Run Reconciliation** navigates to `/compare/cmp-new`.
 
 ### 2026-08-12 — Comparison runs list (`/compare`)
 
 - Added `/compare` page mirroring validation/field-mapping: previous runs + **New Comparison** button.
 - Sidebar **Comparison(Postload <-> Preload)** → `/compare`; active on `/compare*`.
-- Mock runs in `data/comparison.ts`; links to `/compare/new` and `/compare/{id}` (detail pages TBD).
+- Mock runs in `data/comparison.ts`; links to `/compare/new` and `/compare/{id}`.
 
 ### 2026-08-12 — Project.md full refresh (field mapping complete)
 

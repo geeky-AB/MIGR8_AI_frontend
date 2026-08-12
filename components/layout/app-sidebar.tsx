@@ -3,10 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ComponentType } from "react";
-import { Button } from "@/components/ui/button";
 import {
   AccountCircleIcon,
-  AddIcon,
   AnalyticsIcon,
   CompareIcon,
   DashboardIcon,
@@ -15,6 +13,7 @@ import {
   RuleIcon,
   SettingsIcon,
 } from "@/components/ui/icons";
+import { useProject } from "@/contexts/project-context";
 import {
   SIDEBAR_FOOTER_NAV,
   SIDEBAR_NAV,
@@ -80,8 +79,18 @@ function NavLink({
   );
 }
 
+function withSelectedProjectLabel(items: NavItem[], projectName: string) {
+  return items.map((item) =>
+    item.children
+      ? { ...item, label: projectName }
+      : item,
+  );
+}
+
 export function AppSidebar({ className = "", onNavigate }: AppSidebarProps) {
   const pathname = usePathname();
+  const { selectedProject } = useProject();
+  const navItems = withSelectedProjectLabel(SIDEBAR_NAV, selectedProject.name);
 
   return (
     <nav
@@ -106,13 +115,21 @@ export function AppSidebar({ className = "", onNavigate }: AppSidebarProps) {
         </div>
       </div>
 
-      <Button type="button" size="md" fullWidth className="mb-6 gap-2">
-        <AddIcon className="h-4 w-4" />
-        New Migration
-      </Button>
+      <Link
+        href="/projects"
+        onClick={onNavigate}
+        className={[
+          "mb-6 inline-flex h-11 w-full items-center justify-center gap-2 rounded border border-transparent bg-primary-container px-4 text-base font-semibold leading-7 text-on-primary shadow-ambient transition-colors hover:bg-primary hover:shadow-md",
+          pathname === "/projects" || pathname.startsWith("/projects/")
+            ? "ring-2 ring-primary/30"
+            : "",
+        ].join(" ")}
+      >
+        Projects
+      </Link>
 
       <div className="flex-1 space-y-1 overflow-y-auto">
-        {SIDEBAR_NAV.map((item) => (
+        {navItems.map((item) => (
           <div key={item.label} className="space-y-1">
             <NavLink
               item={item}

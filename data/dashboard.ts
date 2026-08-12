@@ -22,7 +22,7 @@ export const SIDEBAR_NAV: NavItem[] = [
     icon: "dashboard",
   },
   {
-    label: "Migration Projects",
+    label: "Project 1",
     href: "#",
     icon: "dataset",
     children: [
