@@ -12,7 +12,7 @@
 | Package name | `migr8-ai-frontend` |
 | Repo path | `MIGR8_AI_frontend/` (workspace: `MIGR8 AI frontend`) |
 | Purpose | Frontend for MIGR8 AI — SAP data migration assistant (UI from Google Stitch) |
-| Status | Auth, dashboard, field mapping, and full validation flow implemented (mock/static data) |
+| Status | Auth, dashboard, field mapping, and full validation flow implemented (mock/static data); axios API client scaffolded for FastAPI backend |
 | Design source | Stitch project **Remix of MIGR8 AI Migration Assistant** (`11703829461598989849`) |
 | Git | `main` — 3 commits: scaffold → core screens → validation UI |
 
@@ -31,13 +31,15 @@
 | Package manager | **npm** | |
 | Path alias | `@/*` → project root | Configured in `tsconfig.json` |
 | Design tooling | **Stitch MCP** (`@_davideast/stitch-mcp`) | Source of truth for UI |
+| HTTP client | **Axios 1.x** | Shared instance in `lib/axios.ts` |
+| Backend (planned) | **Python FastAPI** | Base URL via `NEXT_PUBLIC_API_BASE_URL` |
 
 ### Explicit non-choices (for now)
 
 - No `src/` directory — app lives at project root (`app/`)
 - No third-party UI kit (custom components only)
-- No real auth, API client, state library, or testing setup yet
-- Forms / uploads are mock/static only
+- No real auth wiring, state library, or testing setup yet
+- Forms / uploads are mock/static only — API client is ready but not yet connected to screens
 
 ---
 
@@ -150,11 +152,15 @@ MIGR8_AI_frontend/
 │   ├── field-mapping.ts         # Schema upload cards + topbar title
 │   ├── validation.ts            # Runs, field rules, rule config types
 │   └── validation-results.ts    # Per-run result summaries + exceptions
+├── lib/
+│   └── axios.ts                 # Shared axios instance for FastAPI backend calls
 ├── public/
 │   ├── brand/migr8-logo.png
 │   ├── avatars/user.png
 │   └── *.svg                    # Next.js scaffold assets
 ├── stitch-assets/               # Local Stitch HTML/screenshots (gitignored)
+├── .env.example                 # Committed env template (backend URL)
+├── .env.local                   # Local env overrides (gitignored)
 ├── .cursor/mcp.json             # Stitch MCP config (local; gitignored; may contain secrets)
 ├── next.config.ts
 ├── postcss.config.mjs
@@ -165,6 +171,31 @@ MIGR8_AI_frontend/
 ├── AGENTS.md / CLAUDE.md        # Next.js agent guidance
 └── README.md                    # Default create-next-app readme (not product docs)
 ```
+
+---
+
+## API client (FastAPI backend)
+
+Shared axios instance: `lib/axios.ts`. Import and use for all backend calls:
+
+```ts
+import apiClient from "@/lib/axios";
+
+const { data } = await apiClient.get("/api/validation/runs");
+await apiClient.post("/api/auth/login", { email, password });
+```
+
+| Setting | Value |
+| --- | --- |
+| Env var | `NEXT_PUBLIC_API_BASE_URL` |
+| Default | `http://localhost:8000` (FastAPI dev default) |
+| Local config | `.env.local` (gitignored) |
+| Template | `.env.example` (committed) |
+
+Notes:
+- `NEXT_PUBLIC_` prefix is required for client components (`"use client"`).
+- Restart `npm run dev` after changing env vars.
+- Request/response interceptors in `lib/axios.ts` are placeholders for auth tokens and centralized error handling.
 
 ---
 
@@ -227,6 +258,12 @@ npm run lint     # ESLint
 ---
 
 ## Session Log
+
+### 2026-08-12 — Axios API client + env setup
+
+- Added `axios` dependency and `lib/axios.ts` shared instance for future FastAPI integration.
+- Created `.env.example` (committed) and `.env.local` (gitignored) with `NEXT_PUBLIC_API_BASE_URL`.
+- Updated `.gitignore` to allow `.env.example` while keeping other `.env*` files private.
 
 ### 2026-08-12 — Project.md full refresh
 
@@ -300,10 +337,11 @@ npm run lint     # ESLint
 4. **Stitch is UI source of truth** — match layout, spacing, typography, and color from Stitch HTML/screenshots.
 5. **Shared app chrome** — authenticated product screens use `AppShell`; nav stays while main content swaps.
 6. **Reuse before inventing** — extend existing `components/ui` and layout pieces; avoid duplicate components.
-7. **Mock data only** until APIs exist — keep fixtures in `data/`; no backend wiring unless requested.
+7. **Mock data only** until APIs are wired — keep fixtures in `data/`; replace with `apiClient` calls when FastAPI endpoints are ready.
 8. **Page → view split** — route files stay thin (`metadata` + `AppShell` wrapper); screen logic lives in `components/*/`-view files.
-9. **Keep `Project.md` current** — after meaningful changes, update structure/routes/decisions and append a session log entry.
-10. Prefer small, focused changes over broad refactors unless requested.
+9. **Single axios instance** — import `apiClient` from `@/lib/axios`; do not create ad-hoc axios instances elsewhere.
+10. **Keep `Project.md` current** — after meaningful changes, update structure/routes/decisions and append a session log entry.
+11. Prefer small, focused changes over broad refactors unless requested.
 
 ---
 
@@ -312,6 +350,7 @@ npm run lint     # ESLint
 - Wire remaining sidebar routes: Comparison, Reports, Profile, Settings
 - Post–schema-upload Field Mapping workspace / mapping results screens
 - Replace placeholder `/` home (redirect to `/sign-in` or `/dashboard`?)
+- Wire screens to FastAPI endpoints (axios client ready in `lib/axios.ts`)
 - Real auth + API contracts
 - Deployment target
 - Testing strategy
