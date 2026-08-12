@@ -51,6 +51,9 @@
 | `/sign-in` | `app/sign-in/page.tsx` | `SignInCard` + `SystemStatus` | Standalone auth layout |
 | `/register` | `app/register/page.tsx` | `RegisterCard` | Standalone auth layout; linked ↔ Sign In |
 | `/dashboard` | `app/dashboard/page.tsx` | `DashboardView` | Uses shared `AppShell` |
+| `/compare` | `app/compare/page.tsx` | `ComparisonRunsList` | Prior runs + **New Comparison** |
+| `/compare/new` | `app/compare/new/page.tsx` | `ComparisonSetupView` | Reconciliation upload; from New Comparison |
+| `/compare/[id]` | `app/compare/[id]/page.tsx` | `ReconciliationReviewView` | Exception review; `generateStaticParams` |
 | `/field-mapping` | `app/field-mapping/page.tsx` | `FieldMappingRunsList` | Prior runs + **New Field Mapping** |
 | `/field-mapping/new` | `app/field-mapping/new/page.tsx` | `FieldMappingSetupView` + `SchemaUploadPanel` | Source/target upload + SAP fetch; topbar title |
 | `/field-mapping/[id]` | `app/field-mapping/[id]/page.tsx` | `FieldMappingWorkspaceView` | Multi-prospect mapping workspace; `generateStaticParams` |
@@ -71,8 +74,12 @@
 7. **Field Mapping flow:**
    - `/field-mapping` (runs list) → click a prior run → `/field-mapping/{run.id}`
    - `/field-mapping` → **New Field Mapping** → `/field-mapping/new` → **Start Mapping** → `/field-mapping/map-new`
-8. Validation sidebar item stays active on `/validation*` and `/validation_result*`.
-9. Field Mapping sidebar item stays active on `/field-mapping*`.
+8. **Comparison flow:**
+   - `/compare` (runs list) → click a prior run → `/compare/{run.id}`
+   - `/compare` → **New Comparison** → `/compare/new` → **Run Reconciliation** → `/compare/cmp-new`
+9. Validation sidebar item stays active on `/validation*` and `/validation_result*`.
+10. Field Mapping sidebar item stays active on `/field-mapping*`.
+11. Comparison sidebar item stays active on `/compare*`.
 
 ### Sidebar nav labels (current)
 
@@ -83,7 +90,7 @@ Defined in `data/dashboard.ts` (`SIDEBAR_NAV`, `SIDEBAR_FOOTER_NAV`):
 | Dashboard | `/dashboard` |
 | Migration Projects | `#` (parent) |
 | → Validation | `/validation` (+ `/validation_result/*`) |
-| → Comparison(Postload <-> Preload) | `#` (TBD) |
+| → Comparison(Postload <-> Preload) | `/compare` |
 | → Field Mapping | `/field-mapping` |
 | → Reports | `#` (TBD) |
 | Profile | `#` (TBD) |
@@ -107,6 +114,17 @@ Defined in `data/dashboard.ts` (`SIDEBAR_NAV`, `SIDEBAR_FOOTER_NAV`):
 | `map-003` | `PREVIOUS_FIELD_MAPPING_RUNS` | Payment terms mapping |
 | `map-new` | `LATEST_FIELD_MAPPING_RUN_ID` | Target after **Start Mapping** |
 
+### Mock comparison run IDs
+
+| ID | Source | Notes |
+| --- | --- | --- |
+| `cmp-001` | `PREVIOUS_COMPARISON_RUNS` | Customer Master — postload vs preload |
+| `cmp-002` | `PREVIOUS_COMPARISON_RUNS` | Material Master reconciliation |
+| `cmp-003` | `PREVIOUS_COMPARISON_RUNS` | Vendor Master delta check |
+| `cmp-new` | `LATEST_COMPARISON_RUN_ID` | Target after **Run Reconciliation** |
+
+---
+
 ### Field Mapping setup (`/field-mapping/new`)
 
 | Card | Key UI |
@@ -129,6 +147,10 @@ MIGR8_AI_frontend/
 │   ├── sign-in/page.tsx
 │   ├── register/page.tsx
 │   ├── dashboard/page.tsx
+│   ├── compare/
+│   │   ├── page.tsx             # Previous comparison runs
+│   │   ├── new/page.tsx         # Reconciliation Upload with Conditional Metadata
+│   │   └── [id]/page.tsx        # Reconciliation & Exception Review
 │   ├── field-mapping/
 │   │   ├── page.tsx             # Previous field mapping runs
 │   │   ├── new/page.tsx         # AI Field Mapping Setup
@@ -153,6 +175,11 @@ MIGR8_AI_frontend/
 │   │   ├── kpi-card.tsx         # KPI cards + SectionCard
 │   │   ├── recent-projects.tsx
 │   │   └── migration-readiness.tsx
+│   ├── comparison/
+│   │   ├── comparison-runs-list.tsx
+│   │   ├── comparison-setup-view.tsx
+│   │   ├── reconciliation-upload-panel.tsx
+│   │   └── reconciliation-review-view.tsx
 │   ├── field-mapping/
 │   │   ├── field-mapping-runs-list.tsx
 │   │   ├── field-mapping-setup-view.tsx
@@ -178,6 +205,8 @@ MIGR8_AI_frontend/
 │       └── password-strength-meter.tsx
 ├── data/
 │   ├── dashboard.ts             # Nav, KPIs, recent projects, readiness
+│   ├── comparison.ts            # Runs, reconciliation upload cards, project name
+│   ├── comparison-results.ts    # Review summaries, discrepancies, mock run IDs
 │   ├── field-mapping.ts         # Runs, schema cards (incl. sapFetch), topbar title
 │   ├── field-mapping-workspace.ts # Workspace rows, prospects, AI review mock data
 │   ├── validation.ts            # Runs, field rules, rule config types
@@ -271,6 +300,8 @@ Shared UI: `Button`, `TextField`, `Dialog`, icons (`TagIcon`, `PhoneIcon`, `Help
 | Migration Control Center Dashboard | `262acc49650e4ca98c8d45cc00ba8aa9` | `/dashboard` |
 | AI Field Mapping Setup | `cac35d70b9ca451cb5af37e5f88875e4` | `/field-mapping/new` |
 | AI Field Mapping Workspace (Multi-Prospect View) | `52c54e1486504e40bee362a260b0f905` | `/field-mapping/[id]` |
+| Reconciliation Upload with Conditional Metadata | `f9ae00b981bb4b9faf0cd90736646cc2` | `/compare/new` |
+| Reconciliation & Exception Review (Updated Nav) | `d2bc367f18d44a228e999f0b91ac1d5a` | `/compare/[id]` |
 | Advanced Validation & Results | `5861531b2f924a2abb62e112ceacda14` | `/validation/new` |
 | Advanced Validation Rules Configuration | `674ecec8e0304b25ab8ea3aabacfa8c1` | Dialog on `/validation/new` (Define Rules) |
 | Validation Results Analysis (Updated Nav) | `38ab412ecfeb44d998088e41c2089e31` | `/validation_result/[id]` |
@@ -289,6 +320,25 @@ npm run lint     # ESLint
 ---
 
 ## Session Log
+
+### 2026-08-12 — Reconciliation & Exception Review (`/compare/[id]`)
+
+- Implemented `/compare/[id]` from Stitch **Reconciliation & Exception Review (Updated Nav)** (`d2bc367f18d44a228e999f0b91ac1d5a`).
+- Summary cards (Matched / Different / Missing), discrepancy table, Download + View Exceptions actions.
+- **Run Reconciliation** → `/compare/cmp-new`; prior runs link to `/compare/{id}`.
+- Mock data in `data/comparison-results.ts`.
+
+### 2026-08-12 — Reconciliation Upload with Conditional Metadata (`/compare/new`)
+
+- Implemented `/compare/new` from Stitch **Reconciliation Upload with Conditional Metadata** (`f9ae00b981bb4b9faf0cd90736646cc2`).
+- Preload/postload dashed upload cards with conditional field metadata sections.
+- **Have Field Mapping?** checkbox toggles metadata upload UI; **Run Reconciliation** in page header (mock).
+
+### 2026-08-12 — Comparison runs list (`/compare`)
+
+- Added `/compare` page mirroring validation/field-mapping: previous runs + **New Comparison** button.
+- Sidebar **Comparison(Postload <-> Preload)** → `/compare`; active on `/compare*`.
+- Mock runs in `data/comparison.ts`; links to `/compare/new` and `/compare/{id}` (detail pages TBD).
 
 ### 2026-08-12 — Project.md full refresh (field mapping complete)
 
@@ -401,7 +451,7 @@ npm run lint     # ESLint
 
 ## Open Questions / TBD
 
-- Wire remaining sidebar routes: Comparison, Reports, Profile, Settings
+- Wire remaining sidebar routes: Reports, Profile, Settings
 - Replace placeholder `/` home (redirect to `/sign-in` or `/dashboard`?)
 - Wire screens to FastAPI endpoints (axios client ready in `lib/axios.ts`)
 - Real auth + API contracts

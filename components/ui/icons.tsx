@@ -407,6 +407,16 @@ export function HelpIcon({ className = "h-5 w-5" }: IconProps) {
   );
 }
 
+export function InfoIcon({ className = "h-5 w-5" }: IconProps) {
+  return (
+    <svg {...baseIconProps(className)}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 11v5" />
+      <path d="M12 8h.01" />
+    </svg>
+  );
+}
+
 export function CheckIcon({ className = "h-5 w-5" }: IconProps) {
   return (
     <svg {...baseIconProps(className)}>
