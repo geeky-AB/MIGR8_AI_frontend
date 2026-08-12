@@ -33,7 +33,7 @@ export const SIDEBAR_NAV: NavItem[] = [
         matchPrefixes: ["/validation", "/validation_result"],
       },
       { label: "Comparison(Postload <-> Preload)", href: "#", icon: "compare" },
-      { label: "Field Mapping", href: "/field-mapping", icon: "hub" },
+      { label: "Field Mapping", href: "/field-mapping", icon: "hub", matchPrefixes: ["/field-mapping"] },
       { label: "Reports", href: "#", icon: "analytics" },
     ],
   },

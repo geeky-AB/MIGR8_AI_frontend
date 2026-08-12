@@ -12,9 +12,9 @@
 | Package name | `migr8-ai-frontend` |
 | Repo path | `MIGR8_AI_frontend/` (workspace: `MIGR8 AI frontend`) |
 | Purpose | Frontend for MIGR8 AI — SAP data migration assistant (UI from Google Stitch) |
-| Status | Auth, dashboard, field mapping, and full validation flow implemented (mock/static data); axios API client scaffolded for FastAPI backend |
+| Status | Auth, dashboard, full validation flow, and full field mapping flow (runs → setup → workspace) implemented (mock/static data); axios API client scaffolded for FastAPI backend |
 | Design source | Stitch project **Remix of MIGR8 AI Migration Assistant** (`11703829461598989849`) |
-| Git | `main` — 3 commits: scaffold → core screens → validation UI |
+| Git | `main` — scaffold → core screens → validation UI → axios → field mapping flow |
 
 ---
 
@@ -51,7 +51,9 @@
 | `/sign-in` | `app/sign-in/page.tsx` | `SignInCard` + `SystemStatus` | Standalone auth layout |
 | `/register` | `app/register/page.tsx` | `RegisterCard` | Standalone auth layout; linked ↔ Sign In |
 | `/dashboard` | `app/dashboard/page.tsx` | `DashboardView` | Uses shared `AppShell` |
-| `/field-mapping` | `app/field-mapping/page.tsx` | `FieldMappingSetupView` | Schema upload; sidebar nav |
+| `/field-mapping` | `app/field-mapping/page.tsx` | `FieldMappingRunsList` | Prior runs + **New Field Mapping** |
+| `/field-mapping/new` | `app/field-mapping/new/page.tsx` | `FieldMappingSetupView` + `SchemaUploadPanel` | Source/target upload + SAP fetch; topbar title |
+| `/field-mapping/[id]` | `app/field-mapping/[id]/page.tsx` | `FieldMappingWorkspaceView` | Multi-prospect mapping workspace; `generateStaticParams` |
 | `/validation` | `app/validation/page.tsx` | `ValidationRunsList` | Prior runs + **New Validation** |
 | `/validation/new` | `app/validation/new/page.tsx` | `AdvancedValidationView` | Rules table + upload zone |
 | `/validation_result/[id]` | `app/validation_result/[id]/page.tsx` | `ValidationResultsView` | Per-run results; `generateStaticParams` |
@@ -66,7 +68,11 @@
 6. **Validation flow:**
    - `/validation` (runs list) → click a prior run → `/validation_result/{run.id}`
    - `/validation` → **New Validation** → `/validation/new` → **Run Validation Rules** → `/validation_result/run-new`
-7. Validation sidebar item stays active on `/validation*` and `/validation_result*`.
+7. **Field Mapping flow:**
+   - `/field-mapping` (runs list) → click a prior run → `/field-mapping/{run.id}`
+   - `/field-mapping` → **New Field Mapping** → `/field-mapping/new` → **Start Mapping** → `/field-mapping/map-new`
+8. Validation sidebar item stays active on `/validation*` and `/validation_result*`.
+9. Field Mapping sidebar item stays active on `/field-mapping*`.
 
 ### Sidebar nav labels (current)
 
@@ -92,6 +98,24 @@ Defined in `data/dashboard.ts` (`SIDEBAR_NAV`, `SIDEBAR_FOOTER_NAV`):
 | `run-003` | `PREVIOUS_VALIDATION_RUNS` | Key uniqueness sweep |
 | `run-new` | `LATEST_VALIDATION_RUN_ID` | Target after **Run Validation Rules** |
 
+### Mock field mapping run IDs
+
+| ID | Source | Notes |
+| --- | --- | --- |
+| `map-001` | `PREVIOUS_FIELD_MAPPING_RUNS` | Customer Master — full schema map |
+| `map-002` | `PREVIOUS_FIELD_MAPPING_RUNS` | Address & contact fields |
+| `map-003` | `PREVIOUS_FIELD_MAPPING_RUNS` | Payment terms mapping |
+| `map-new` | `LATEST_FIELD_MAPPING_RUN_ID` | Target after **Start Mapping** |
+
+### Field Mapping setup (`/field-mapping/new`)
+
+| Card | Key UI |
+| --- | --- |
+| Source Field List | File upload (`.csv`, `.xlsx`) — **Select Source File** |
+| Target Field List | File upload — **Select Target File**; **OR** divider + **Fetch from SAP** (table name input + **Fetch** button, mock) |
+
+Topbar: `AI Mapping: Upload Source & Target Schemas` (`FIELD_MAPPING_TOPBAR_TITLE`).
+
 ---
 
 ## Project Structure
@@ -105,7 +129,10 @@ MIGR8_AI_frontend/
 │   ├── sign-in/page.tsx
 │   ├── register/page.tsx
 │   ├── dashboard/page.tsx
-│   ├── field-mapping/page.tsx
+│   ├── field-mapping/
+│   │   ├── page.tsx             # Previous field mapping runs
+│   │   ├── new/page.tsx         # AI Field Mapping Setup
+│   │   └── [id]/page.tsx        # AI Field Mapping Workspace
 │   ├── validation/
 │   │   ├── page.tsx             # Previous validation runs
 │   │   └── new/page.tsx         # Advanced Validation & Results
@@ -127,7 +154,9 @@ MIGR8_AI_frontend/
 │   │   ├── recent-projects.tsx
 │   │   └── migration-readiness.tsx
 │   ├── field-mapping/
+│   │   ├── field-mapping-runs-list.tsx
 │   │   ├── field-mapping-setup-view.tsx
+│   │   ├── field-mapping-workspace-view.tsx
 │   │   └── schema-upload-panel.tsx
 │   ├── validation/
 │   │   ├── validation-runs-list.tsx
@@ -144,12 +173,13 @@ MIGR8_AI_frontend/
 │       ├── button.tsx
 │       ├── text-field.tsx
 │       ├── dialog.tsx
-│       ├── icons.tsx
+│       ├── icons.tsx            # Shared SVG icons (incl. Tag, Phone, Help, Check)
 │       ├── progress.tsx         # ProgressBar + CircularProgress
 │       └── password-strength-meter.tsx
 ├── data/
 │   ├── dashboard.ts             # Nav, KPIs, recent projects, readiness
-│   ├── field-mapping.ts         # Schema upload cards + topbar title
+│   ├── field-mapping.ts         # Runs, schema cards (incl. sapFetch), topbar title
+│   ├── field-mapping-workspace.ts # Workspace rows, prospects, AI review mock data
 │   ├── validation.ts            # Runs, field rules, rule config types
 │   └── validation-results.ts    # Per-run result summaries + exceptions
 ├── lib/
@@ -207,7 +237,7 @@ Notes:
 | --- | --- | --- |
 | `children` | `ReactNode` | Main page content |
 | `topbarTitle` | `string?` | Replaces search bar with a page title |
-| `topbarLeading` | `ReactNode?` | Custom breadcrumb / project label (validation routes) |
+| `topbarLeading` | `ReactNode?` | Custom breadcrumb / project label (validation + workspace routes) |
 | `mainClassName` | `string?` | Override main padding/layout (e.g. sticky footers on validation/field-mapping) |
 
 ---
@@ -228,7 +258,7 @@ Tokens live in `app/globals.css` (`:root` + `@theme inline`). Key values:
 | `--tertiary` | `#8a3500` | Warnings / mismatches |
 | `--success` | `#10b981` | Strong password / success badges |
 
-Shared UI: `Button`, `TextField`, `Dialog`, icons, `ProgressBar` / `CircularProgress`, `PasswordStrengthMeter`, `SectionCard`.
+Shared UI: `Button`, `TextField`, `Dialog`, icons (`TagIcon`, `PhoneIcon`, `HelpIcon`, `CheckIcon`, etc.), `ProgressBar` / `CircularProgress`, `PasswordStrengthMeter`, `SectionCard`.
 
 ---
 
@@ -239,7 +269,8 @@ Shared UI: `Button`, `TextField`, `Dialog`, icons, `ProgressBar` / `CircularProg
 | Sign In | `a6a315fdc7ce47dabd6df8a5c1d35fe9` | `/sign-in` |
 | Register | `888050980ca440b6bf42cabe82fba5ad` | `/register` |
 | Migration Control Center Dashboard | `262acc49650e4ca98c8d45cc00ba8aa9` | `/dashboard` |
-| AI Field Mapping Setup | `cac35d70b9ca451cb5af37e5f88875e4` | `/field-mapping` |
+| AI Field Mapping Setup | `cac35d70b9ca451cb5af37e5f88875e4` | `/field-mapping/new` |
+| AI Field Mapping Workspace (Multi-Prospect View) | `52c54e1486504e40bee362a260b0f905` | `/field-mapping/[id]` |
 | Advanced Validation & Results | `5861531b2f924a2abb62e112ceacda14` | `/validation/new` |
 | Advanced Validation Rules Configuration | `674ecec8e0304b25ab8ea3aabacfa8c1` | Dialog on `/validation/new` (Define Rules) |
 | Validation Results Analysis (Updated Nav) | `38ab412ecfeb44d998088e41c2089e31` | `/validation_result/[id]` |
@@ -258,6 +289,30 @@ npm run lint     # ESLint
 ---
 
 ## Session Log
+
+### 2026-08-12 — Project.md full refresh (field mapping complete)
+
+- Brought Overview, routes, field mapping setup details, mock IDs, structure, and session log in line with latest codebase.
+- Documented full field mapping flow: runs list → setup (with SAP fetch) → workspace.
+- Updated git status, AppShell `topbarLeading` usage, and shared icons list.
+
+### 2026-08-12 — AI Field Mapping Setup refresh (Stitch)
+
+- Updated `/field-mapping/new` to match latest Stitch: topbar title, Target Field List card, Select Target File button.
+- Added OR divider + Fetch from SAP input on target card (`schema-upload-panel.tsx`).
+
+### 2026-08-12 — AI Field Mapping Workspace (Multi-Prospect View)
+
+- Implemented `/field-mapping/[id]` from Stitch **AI Field Mapping Workspace (Multi-Prospect View)** (`52c54e1486504e40bee362a260b0f905`).
+- Mapping table with source → target prospects, confidence badges, search/filter bar, and AI review panel.
+- **Start Mapping** on `/field-mapping/new` → `/field-mapping/map-new`; prior runs link to `/field-mapping/{id}`.
+- Mock workspace data in `data/field-mapping-workspace.ts`.
+
+### 2026-08-12 — Field Mapping runs list + `/field-mapping/new`
+
+- `/field-mapping` now mirrors `/validation`: previous runs list + **New Field Mapping** button.
+- Moved schema upload setup to `/field-mapping/new` (`FieldMappingSetupView`).
+- Added `FieldMappingRunsList`, mock runs in `data/field-mapping.ts`; sidebar active on `/field-mapping*`.
 
 ### 2026-08-12 — Axios API client + env setup
 
@@ -299,10 +354,9 @@ npm run lint     # ESLint
 
 ### 2026-08-12 — AI Field Mapping Setup from Stitch
 
-- Implemented `/field-mapping` from Stitch **AI Field Mapping Setup** (`cac35d70b9ca451cb5af37e5f88875e4`).
-- Reuses `AppShell` (sidebar + topbar); only main content changes.
-- Pathname-based active nav; Field Mapping → `/field-mapping`.
-- Topbar shows page title on this route; upload cards + sticky **Start Mapping** (mock).
+- Originally implemented at `/field-mapping`; later moved to `/field-mapping/new` when runs list was added.
+- Reuses `AppShell` (sidebar + topbar); upload cards + sticky **Start Mapping** (mock).
+- Refreshed per latest Stitch: Target Field List, Select Target File, Fetch from SAP.
 
 ### 2026-08-11 — Migration Control Center Dashboard from Stitch
 
@@ -348,7 +402,6 @@ npm run lint     # ESLint
 ## Open Questions / TBD
 
 - Wire remaining sidebar routes: Comparison, Reports, Profile, Settings
-- Post–schema-upload Field Mapping workspace / mapping results screens
 - Replace placeholder `/` home (redirect to `/sign-in` or `/dashboard`?)
 - Wire screens to FastAPI endpoints (axios client ready in `lib/axios.ts`)
 - Real auth + API contracts

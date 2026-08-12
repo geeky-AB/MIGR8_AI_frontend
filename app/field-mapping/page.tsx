@@ -1,21 +1,17 @@
 import type { Metadata } from "next";
-import { FieldMappingSetupView } from "@/components/field-mapping/field-mapping-setup-view";
+import { FieldMappingRunsList } from "@/components/field-mapping/field-mapping-runs-list";
 import { AppShell } from "@/components/layout/app-shell";
-import { FIELD_MAPPING_TOPBAR_TITLE } from "@/data/field-mapping";
 
 export const metadata: Metadata = {
-  title: "AI Field Mapping Setup | MIGR8 AI",
+  title: "Field Mapping | MIGR8 AI",
   description:
-    "Upload source and target schemas to begin AI-assisted field mapping.",
+    "Review previous field mapping runs or start a new mapping for your migration project.",
 };
 
 export default function FieldMappingPage() {
   return (
-    <AppShell
-      topbarTitle={FIELD_MAPPING_TOPBAR_TITLE}
-      mainClassName="flex flex-1 flex-col bg-background p-0"
-    >
-      <FieldMappingSetupView />
+    <AppShell topbarTitle="Field Mapping">
+      <FieldMappingRunsList />
     </AppShell>
   );
 }
