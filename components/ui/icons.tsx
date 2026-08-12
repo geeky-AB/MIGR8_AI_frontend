@@ -378,3 +378,49 @@ export function DescriptionIcon({ className = "h-5 w-5" }: IconProps) {
     </svg>
   );
 }
+
+export function TagIcon({ className = "h-5 w-5" }: IconProps) {
+  return (
+    <svg {...baseIconProps(className)}>
+      <path d="M4 11V5a2 2 0 0 1 2-2h6" />
+      <path d="m4 11 8 8 8-8V5a2 2 0 0 0-2-2h-6" />
+      <circle cx="8.5" cy="8.5" r="1.25" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+export function PhoneIcon({ className = "h-5 w-5" }: IconProps) {
+  return (
+    <svg {...baseIconProps(className)}>
+      <path d="M6.5 4h3l1.5 4-2 1.5a11 11 0 0 0 5 5L17.5 12 22 13.5V17a2 2 0 0 1-2 2A16 16 0 0 1 3 6.5 2 2 0 0 1 5 4.5Z" />
+    </svg>
+  );
+}
+
+export function HelpIcon({ className = "h-5 w-5" }: IconProps) {
+  return (
+    <svg {...baseIconProps(className)}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M9.5 9.5a2.5 2.5 0 0 1 4.3 1.7c0 1.7-2.8 2.2-2.8 3.8" />
+      <path d="M12 17h.01" />
+    </svg>
+  );
+}
+
+export function InfoIcon({ className = "h-5 w-5" }: IconProps) {
+  return (
+    <svg {...baseIconProps(className)}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 11v5" />
+      <path d="M12 8h.01" />
+    </svg>
+  );
+}
+
+export function CheckIcon({ className = "h-5 w-5" }: IconProps) {
+  return (
+    <svg {...baseIconProps(className)}>
+      <path d="M5 12l4 4 10-10" />
+    </svg>
+  );
+}
