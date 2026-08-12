@@ -12,8 +12,9 @@
 | Package name | `migr8-ai-frontend` |
 | Repo path | `MIGR8_AI_frontend/` (workspace: `MIGR8 AI frontend`) |
 | Purpose | Frontend for MIGR8 AI — SAP data migration assistant (UI from Google Stitch) |
-| Status | Auth + dashboard + Field Mapping + Validation flows implemented (mock/static data) |
+| Status | Auth, dashboard, field mapping, and full validation flow implemented (mock/static data) |
 | Design source | Stitch project **Remix of MIGR8 AI Migration Assistant** (`11703829461598989849`) |
+| Git | `main` — 3 commits: scaffold → core screens → validation UI |
 
 ---
 
@@ -25,7 +26,7 @@
 | Language | **TypeScript 5** | Strict mode on |
 | UI / styling | **Tailwind CSS v4** | Via `@tailwindcss/postcss` |
 | React | **React 19.2.8** | |
-| Fonts | **Hanken Grotesk** + **JetBrains Mono** | Via `next/font/google` |
+| Fonts | **Hanken Grotesk** + **JetBrains Mono** | Via `next/font/google` in `app/layout.tsx` |
 | Lint | **ESLint 9** + `eslint-config-next` | |
 | Package manager | **npm** | |
 | Path alias | `@/*` → project root | Configured in `tsconfig.json` |
@@ -42,29 +43,32 @@
 
 ## Routes
 
-| Route | Screen | Notes |
-| --- | --- | --- |
-| `/` | Default Next.js home | Scaffold placeholder (not product UI) |
-| `/sign-in` | Sign In | Standalone auth layout |
-| `/register` | Register | Standalone auth layout; linked ↔ Sign In |
-| `/dashboard` | Migration Control Center | Uses shared `AppShell` |
-| `/field-mapping` | AI Field Mapping Setup | Uses shared `AppShell`; reached from sidebar |
-| `/validation` | Validation runs list | Prior runs + **New Validation**; `AppShell` |
-| `/validation/new` | Advanced Validation & Results | Stitch rules setup; from New Validation |
-| `/validation_result/[id]` | Validation Results Analysis | Per-run results; from prior run or Run Validation |
+| Route | Page file | View component | Notes |
+| --- | --- | --- | --- |
+| `/` | `app/page.tsx` | — | Default Next.js scaffold (not product UI) |
+| `/sign-in` | `app/sign-in/page.tsx` | `SignInCard` + `SystemStatus` | Standalone auth layout |
+| `/register` | `app/register/page.tsx` | `RegisterCard` | Standalone auth layout; linked ↔ Sign In |
+| `/dashboard` | `app/dashboard/page.tsx` | `DashboardView` | Uses shared `AppShell` |
+| `/field-mapping` | `app/field-mapping/page.tsx` | `FieldMappingSetupView` | Schema upload; sidebar nav |
+| `/validation` | `app/validation/page.tsx` | `ValidationRunsList` | Prior runs + **New Validation** |
+| `/validation/new` | `app/validation/new/page.tsx` | `AdvancedValidationView` | Rules table + upload zone |
+| `/validation_result/[id]` | `app/validation_result/[id]/page.tsx` | `ValidationResultsView` | Per-run results; `generateStaticParams` |
 
 ### App shell UX
 
 1. User lands on **Dashboard** (`/dashboard`).
 2. Sidebar / topbar stay mounted via `AppShell`.
 3. Clicking a nav item replaces **main content only**.
-4. Sidebar active state is derived from `usePathname()` (not hard-coded).
-5. **Validation flow:**
-   - `/validation` (runs list) → click a prior run → `/validation_result/[id]`
+4. Sidebar active state is derived from `usePathname()` + `matchPrefixes` (not hard-coded).
+5. **Mobile:** sidebar is hidden on small screens; hamburger opens a drawer overlay (`AppShell` state).
+6. **Validation flow:**
+   - `/validation` (runs list) → click a prior run → `/validation_result/{run.id}`
    - `/validation` → **New Validation** → `/validation/new` → **Run Validation Rules** → `/validation_result/run-new`
-6. Validation sidebar item stays active on `/validation*` and `/validation_result*`.
+7. Validation sidebar item stays active on `/validation*` and `/validation_result*`.
 
 ### Sidebar nav labels (current)
+
+Defined in `data/dashboard.ts` (`SIDEBAR_NAV`, `SIDEBAR_FOOTER_NAV`):
 
 | Label | Href |
 | --- | --- |
@@ -74,7 +78,17 @@
 | → Comparison(Postload <-> Preload) | `#` (TBD) |
 | → Field Mapping | `/field-mapping` |
 | → Reports | `#` (TBD) |
-| Profile / Settings | `#` (TBD) |
+| Profile | `#` (TBD) |
+| Settings | `#` (TBD) |
+
+### Mock validation run IDs
+
+| ID | Source | Notes |
+| --- | --- | --- |
+| `run-001` | `PREVIOUS_VALIDATION_RUNS` | Full source validation |
+| `run-002` | `PREVIOUS_VALIDATION_RUNS` | Email & mandatory fields check |
+| `run-003` | `PREVIOUS_VALIDATION_RUNS` | Key uniqueness sweep |
+| `run-new` | `LATEST_VALIDATION_RUN_ID` | Target after **Run Validation Rules** |
 
 ---
 
@@ -83,70 +97,113 @@
 ```
 MIGR8_AI_frontend/
 ├── app/
-│   ├── globals.css           # Tailwind + Stitch Enterprise Blue tokens
-│   ├── layout.tsx            # Root layout (fonts + metadata)
-│   ├── page.tsx              # Placeholder home
+│   ├── globals.css              # Tailwind + Stitch Enterprise Blue tokens
+│   ├── layout.tsx               # Root layout (fonts + metadata)
+│   ├── page.tsx                 # Placeholder home
 │   ├── sign-in/page.tsx
 │   ├── register/page.tsx
 │   ├── dashboard/page.tsx
 │   ├── field-mapping/page.tsx
 │   ├── validation/
-│   │   ├── page.tsx          # Previous validation runs
-│   │   └── new/page.tsx      # Advanced Validation & Results
+│   │   ├── page.tsx             # Previous validation runs
+│   │   └── new/page.tsx         # Advanced Validation & Results
 │   ├── validation_result/
-│   │   └── [id]/page.tsx    # Validation Results Analysis
+│   │   └── [id]/page.tsx        # Validation Results Analysis
 │   └── favicon.ico
 ├── components/
-│   ├── auth/                 # Sign-in / register cards & forms
-│   ├── brand/                # Migr8Logo
-│   ├── dashboard/            # KPI grid, recent projects, readiness
-│   ├── field-mapping/        # Schema upload panels + setup view
-│   ├── validation/           # Runs list, rules, results analysis
-│   ├── layout/               # AppShell, AppSidebar, AppTopbar
-│   └── ui/                   # Button, TextField, dialog, icons, progress
+│   ├── auth/
+│   │   ├── sign-in-card.tsx
+│   │   ├── sign-in-form.tsx
+│   │   ├── register-card.tsx
+│   │   ├── register-form.tsx
+│   │   └── system-status.tsx    # Sign-in page footer status strip
+│   ├── brand/
+│   │   └── migr8-logo.tsx       # Uses /brand/migr8-logo.png
+│   ├── dashboard/
+│   │   ├── dashboard-view.tsx
+│   │   ├── kpi-card.tsx         # KPI cards + SectionCard
+│   │   ├── recent-projects.tsx
+│   │   └── migration-readiness.tsx
+│   ├── field-mapping/
+│   │   ├── field-mapping-setup-view.tsx
+│   │   └── schema-upload-panel.tsx
+│   ├── validation/
+│   │   ├── validation-runs-list.tsx
+│   │   ├── advanced-validation-view.tsx
+│   │   ├── source-upload-zone.tsx
+│   │   ├── validation-rules-table.tsx
+│   │   ├── advanced-rules-dialog.tsx   # Define Rules modal
+│   │   └── validation-results-view.tsx
+│   ├── layout/
+│   │   ├── app-shell.tsx        # Sidebar + topbar + mobile drawer
+│   │   ├── app-sidebar.tsx
+│   │   └── app-topbar.tsx
+│   └── ui/
+│       ├── button.tsx
+│       ├── text-field.tsx
+│       ├── dialog.tsx
+│       ├── icons.tsx
+│       ├── progress.tsx         # ProgressBar + CircularProgress
+│       └── password-strength-meter.tsx
 ├── data/
-│   ├── dashboard.ts          # Nav + dashboard mock metrics/projects
-│   ├── field-mapping.ts      # Field mapping mock copy / cards
-│   ├── validation.ts         # Validation runs + field rules mock data
-│   └── validation-results.ts # Per-run results mock data
+│   ├── dashboard.ts             # Nav, KPIs, recent projects, readiness
+│   ├── field-mapping.ts         # Schema upload cards + topbar title
+│   ├── validation.ts            # Runs, field rules, rule config types
+│   └── validation-results.ts    # Per-run result summaries + exceptions
 ├── public/
-│   ├── brand/                # Logo asset
-│   └── avatars/              # User avatar
-├── stitch-assets/            # Local Stitch HTML/screenshots (gitignored)
-├── .cursor/mcp.json          # Stitch MCP config (local; may contain secrets)
+│   ├── brand/migr8-logo.png
+│   ├── avatars/user.png
+│   └── *.svg                    # Next.js scaffold assets
+├── stitch-assets/               # Local Stitch HTML/screenshots (gitignored)
+├── .cursor/mcp.json             # Stitch MCP config (local; gitignored; may contain secrets)
 ├── next.config.ts
 ├── postcss.config.mjs
 ├── tsconfig.json
 ├── eslint.config.mjs
 ├── package.json
 ├── Project.md
-├── AGENTS.md / CLAUDE.md     # Next.js agent guidance
-└── README.md
+├── AGENTS.md / CLAUDE.md        # Next.js agent guidance
+└── README.md                    # Default create-next-app readme (not product docs)
 ```
+
+---
+
+## AppShell API
+
+`components/layout/app-shell.tsx` props:
+
+| Prop | Type | Use |
+| --- | --- | --- |
+| `children` | `ReactNode` | Main page content |
+| `topbarTitle` | `string?` | Replaces search bar with a page title |
+| `topbarLeading` | `ReactNode?` | Custom breadcrumb / project label (validation routes) |
+| `mainClassName` | `string?` | Override main padding/layout (e.g. sticky footers on validation/field-mapping) |
 
 ---
 
 ## Design system (Stitch Enterprise Blue)
 
-Tokens live in `app/globals.css` (`@theme inline`). Key values:
+Tokens live in `app/globals.css` (`:root` + `@theme inline`). Key values:
 
 | Token | Value | Use |
 | --- | --- | --- |
 | `--primary` | `#004da4` | Links, accents, solid actions |
 | `--primary-container` | `#0064d2` | Primary buttons, brand marks |
+| `--secondary` / `--secondary-container` | `#4648d4` / `#6063ee` | Secondary accents, chart bars |
 | `--background` / `--surface` | `#f9f9ff` | App canvas |
 | `--surface-container-lowest` | `#ffffff` | Cards |
+| `--surface-container-high` | `#e1e8fd` | Hover states |
 | `--error` | `#ba1a1a` | Validation errors |
 | `--tertiary` | `#8a3500` | Warnings / mismatches |
-| `--success` | `#10b981` | Strong password / success |
+| `--success` | `#10b981` | Strong password / success badges |
 
-Shared UI: `Button`, `TextField`, icons, `ProgressBar` / `CircularProgress`, `PasswordStrengthMeter`.
+Shared UI: `Button`, `TextField`, `Dialog`, icons, `ProgressBar` / `CircularProgress`, `PasswordStrengthMeter`, `SectionCard`.
 
 ---
 
 ## Stitch screens implemented
 
-| Stitch title | Screen ID | App route |
+| Stitch title | Screen ID | App route / location |
 | --- | --- | --- |
 | Sign In | `a6a315fdc7ce47dabd6df8a5c1d35fe9` | `/sign-in` |
 | Register | `888050980ca440b6bf42cabe82fba5ad` | `/register` |
@@ -170,6 +227,12 @@ npm run lint     # ESLint
 ---
 
 ## Session Log
+
+### 2026-08-12 — Project.md full refresh
+
+- Brought structure, routes, component map, AppShell API, mock run IDs, and git status in line with the codebase.
+- Documented all validation/field-mapping/dashboard component files.
+- Clarified `public/brand` + `public/avatars` assets and `.cursor/mcp.json` gitignore.
 
 ### 2026-08-12 — Validation Results Analysis
 
@@ -237,15 +300,15 @@ npm run lint     # ESLint
 4. **Stitch is UI source of truth** — match layout, spacing, typography, and color from Stitch HTML/screenshots.
 5. **Shared app chrome** — authenticated product screens use `AppShell`; nav stays while main content swaps.
 6. **Reuse before inventing** — extend existing `components/ui` and layout pieces; avoid duplicate components.
-7. **Mock data only** until APIs exist — no backend wiring unless requested.
-8. **Keep `Project.md` current** — after meaningful changes, update structure/routes/decisions and append a session log entry.
-9. Prefer small, focused changes over broad refactors unless requested.
+7. **Mock data only** until APIs exist — keep fixtures in `data/`; no backend wiring unless requested.
+8. **Page → view split** — route files stay thin (`metadata` + `AppShell` wrapper); screen logic lives in `components/*/`-view files.
+9. **Keep `Project.md` current** — after meaningful changes, update structure/routes/decisions and append a session log entry.
+10. Prefer small, focused changes over broad refactors unless requested.
 
 ---
 
 ## Open Questions / TBD
 
-- Validation results analysis screen after **Run Validation Rules** ✅ (`/validation_result/[id]`)
 - Wire remaining sidebar routes: Comparison, Reports, Profile, Settings
 - Post–schema-upload Field Mapping workspace / mapping results screens
 - Replace placeholder `/` home (redirect to `/sign-in` or `/dashboard`?)
