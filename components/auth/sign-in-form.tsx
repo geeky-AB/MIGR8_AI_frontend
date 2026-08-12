@@ -1,30 +1,42 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { LockIcon, MailIcon } from "@/components/ui/icons";
 import { TextField } from "@/components/ui/text-field";
-
-const MOCK_CREDENTIALS = {
-  email: "name@company.com",
-  password: "••••••••",
-};
+import { useAuth } from "@/lib/auth-context";
 
 export function SignInForm() {
+  const router = useRouter();
+  const { login } = useAuth();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    // Mock auth — no backend yet
-    console.info("Sign in submitted", {
-      email: email || MOCK_CREDENTIALS.email,
-    });
+    setError(null);
+    setSubmitting(true);
+    try {
+      await login(email, password);
+      router.push("/dashboard");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Sign in failed");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6" noValidate>
+      {error && (
+        <p className="rounded bg-error-container/20 px-3 py-2 text-sm text-error">{error}</p>
+      )}
+
       <TextField
         id="email"
         name="email"
@@ -59,8 +71,8 @@ export function SignInForm() {
         }
       />
 
-      <Button type="submit" fullWidth>
-        Sign In
+      <Button type="submit" fullWidth disabled={submitting}>
+        {submitting ? "Signing in..." : "Sign In"}
       </Button>
     </form>
   );

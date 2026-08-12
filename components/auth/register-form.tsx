@@ -1,28 +1,44 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { VisibilityIcon, VisibilityOffIcon } from "@/components/ui/icons";
 import { PasswordStrengthMeter } from "@/components/ui/password-strength-meter";
 import { TextField } from "@/components/ui/text-field";
+import { useAuth } from "@/lib/auth-context";
 
 export function RegisterForm() {
+  const router = useRouter();
+  const { register } = useAuth();
+
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    // Mock registration — no backend yet
-    console.info("Register submitted", {
-      fullName: fullName || "Jane Doe",
-      email: email || "jane@company.com",
-    });
+    setError(null);
+    setSubmitting(true);
+    try {
+      await register(fullName, email, password);
+      router.push("/dashboard");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Registration failed");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-6" noValidate>
+      {error && (
+        <p className="rounded bg-error-container/20 px-3 py-2 text-sm text-error">{error}</p>
+      )}
+
       <TextField
         id="fullName"
         name="fullName"
@@ -75,8 +91,8 @@ export function RegisterForm() {
         <PasswordStrengthMeter password={password} />
       </div>
 
-      <Button type="submit" size="md" fullWidth>
-        Register
+      <Button type="submit" size="md" fullWidth disabled={submitting}>
+        {submitting ? "Creating account..." : "Register"}
       </Button>
     </form>
   );

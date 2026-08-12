@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Dialog } from "@/components/ui/dialog";
 import { AutoAwesomeIcon } from "@/components/ui/icons";
+import apiClient, { getApiErrorMessage } from "@/lib/axios";
 import {
   FIELD_DATA_TYPES,
   MAX_FIELD_LENGTH,
@@ -40,9 +41,14 @@ export function AdvancedRulesDialog({
   onApply,
 }: AdvancedRulesDialogProps) {
   const [config, setConfig] = useState<FieldRuleConfig>(initialConfig);
+  const [generating, setGenerating] = useState(false);
+  const [genError, setGenError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (open) setConfig(initialConfig);
+    if (open) {
+      setConfig(initialConfig);
+      setGenError(null);
+    }
   }, [open, initialConfig]);
 
   const lengthEnabled = isLengthEnabled(config.dataType);
@@ -53,9 +59,7 @@ export function AdvancedRulesDialog({
       ...current,
       dataType,
       length: isLengthEnabled(dataType) ? current.length : current.length,
-      decimalLength: isDecimalLengthVisible(dataType)
-        ? current.decimalLength
-        : null,
+      decimalLength: isDecimalLengthVisible(dataType) ? current.decimalLength : null,
     }));
   }
 
@@ -63,19 +67,29 @@ export function AdvancedRulesDialog({
     const next: FieldRuleConfig = {
       ...config,
       length: lengthEnabled ? clampLength(config.length) : null,
-      decimalLength: showDecimalLength
-        ? clampLength(config.decimalLength)
-        : null,
+      decimalLength: showDecimalLength ? clampLength(config.decimalLength) : null,
     };
     onApply(next);
   }
 
-  function handleSuggestRegex() {
-    // Mock AI assist — no backend
-    setConfig((current) => ({
-      ...current,
-      regex: current.regex.trim() || "^[A-Z0-9]+$",
-    }));
+  // Rule 5 is no longer a raw regex field. The user describes the rule in
+  // plain English, Groq (via the backend) turns it into the actual pattern
+  // that gets stored and applied at validation time.
+  async function handleGenerateRegex() {
+    if (!config.regexPrompt.trim()) return;
+    setGenerating(true);
+    setGenError(null);
+    try {
+      const { data } = await apiClient.post<{ regex: string }>("/api/runs/generate-regex", {
+        field_name: fieldName,
+        prompt: config.regexPrompt,
+      });
+      setConfig((current) => ({ ...current, regex: data.regex }));
+    } catch (err) {
+      setGenError(getApiErrorMessage(err, "Could not generate a rule"));
+    } finally {
+      setGenerating(false);
+    }
   }
 
   return (
@@ -108,25 +122,15 @@ export function AdvancedRulesDialog({
         </label>
         <div className="flex flex-wrap gap-4">
           {CASE_OPTIONS.map((option) => (
-            <label
-              key={option.value}
-              className="flex cursor-pointer items-center gap-2"
-            >
+            <label key={option.value} className="flex cursor-pointer items-center gap-2">
               <input
                 type="radio"
                 name={`case-${fieldName}`}
                 checked={config.caseFormat === option.value}
-                onChange={() =>
-                  setConfig((current) => ({
-                    ...current,
-                    caseFormat: option.value,
-                  }))
-                }
+                onChange={() => setConfig((current) => ({ ...current, caseFormat: option.value }))}
                 className="accent-primary focus:ring-primary"
               />
-              <span className="text-[13px] leading-[18px] text-on-surface">
-                {option.label}
-              </span>
+              <span className="text-[13px] leading-[18px] text-on-surface">{option.label}</span>
             </label>
           ))}
         </div>
@@ -142,9 +146,7 @@ export function AdvancedRulesDialog({
         <select
           id="rule-data-type"
           value={config.dataType}
-          onChange={(event) =>
-            updateDataType(event.target.value as FieldDataType)
-          }
+          onChange={(event) => updateDataType(event.target.value as FieldDataType)}
           className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-3 py-2 text-sm text-on-surface focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none"
         >
           {FIELD_DATA_TYPES.map((type) => (
@@ -155,11 +157,7 @@ export function AdvancedRulesDialog({
         </select>
       </div>
 
-      <div
-        className={
-          showDecimalLength ? "grid grid-cols-1 gap-4 sm:grid-cols-2" : "grid grid-cols-1"
-        }
-      >
+      <div className={showDecimalLength ? "grid grid-cols-1 gap-4 sm:grid-cols-2" : "grid grid-cols-1"}>
         <div>
           <label
             htmlFor="rule-length"
@@ -176,24 +174,17 @@ export function AdvancedRulesDialog({
             value={config.length ?? ""}
             onChange={(event) => {
               const raw = event.target.value;
-              setConfig((current) => ({
-                ...current,
-                length: raw === "" ? null : Number(raw),
-              }));
+              setConfig((current) => ({ ...current, length: raw === "" ? null : Number(raw) }));
             }}
             className={[
               "w-full rounded-lg border border-outline-variant px-3 py-2 text-sm text-on-surface focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none",
-              lengthEnabled
-                ? "bg-surface-container-lowest"
-                : "bg-surface-container-low opacity-50",
+              lengthEnabled ? "bg-surface-container-lowest" : "bg-surface-container-low opacity-50",
             ].join(" ")}
           />
           {lengthEnabled ? (
             <p className="mt-1 text-[11px] text-outline">Max {MAX_FIELD_LENGTH}</p>
           ) : (
-            <p className="mt-1 text-[11px] text-outline">
-              Disabled when data type is string
-            </p>
+            <p className="mt-1 text-[11px] text-outline">Disabled when data type is string</p>
           )}
         </div>
 
@@ -226,34 +217,40 @@ export function AdvancedRulesDialog({
 
       <div>
         <label
-          htmlFor="rule-regex"
+          htmlFor="rule-regex-prompt"
           className="mb-2 block text-xs font-semibold uppercase tracking-[0.02em] leading-4 text-on-surface-variant"
         >
-          Rule 5: Custom Regex
+          Rule 5: Custom Rule (describe it in plain English)
         </label>
         <div className="relative">
-          <input
-            id="rule-regex"
-            type="text"
-            value={config.regex}
+          <textarea
+            id="rule-regex-prompt"
+            rows={2}
+            value={config.regexPrompt}
             onChange={(event) =>
-              setConfig((current) => ({
-                ...current,
-                regex: event.target.value,
-              }))
+              setConfig((current) => ({ ...current, regexPrompt: event.target.value }))
             }
-            placeholder="^[A-Z0-9]+$"
-            className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest py-2 pr-10 pl-3 text-sm text-on-surface focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none"
+            placeholder="e.g. Must be a 10-digit code starting with 9"
+            className="w-full resize-none rounded-lg border border-outline-variant bg-surface-container-lowest py-2 pr-10 pl-3 text-sm text-on-surface focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none"
           />
           <button
             type="button"
-            onClick={handleSuggestRegex}
-            className="absolute top-1/2 right-2 -translate-y-1/2 text-primary transition-transform hover:scale-110"
-            aria-label="Suggest regex"
+            onClick={handleGenerateRegex}
+            disabled={generating || !config.regexPrompt.trim()}
+            className="absolute top-2 right-2 text-primary transition-transform hover:scale-110 disabled:opacity-40"
+            aria-label="Generate rule with AI"
           >
             <AutoAwesomeIcon className="h-5 w-5" />
           </button>
         </div>
+
+        {generating && <p className="mt-1 text-[11px] text-outline">Generating rule...</p>}
+        {genError && <p className="mt-1 text-[11px] text-error">{genError}</p>}
+        {config.regex && !generating && (
+          <p className="mt-1 truncate text-[11px] text-outline" title={config.regex}>
+            Applied pattern: <code>{config.regex}</code>
+          </p>
+        )}
       </div>
     </Dialog>
   );

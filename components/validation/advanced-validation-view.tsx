@@ -1,24 +1,68 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { SourceUploadZone } from "@/components/validation/source-upload-zone";
 import { ValidationRulesTable } from "@/components/validation/validation-rules-table";
 import { PlayArrowIcon } from "@/components/ui/icons";
-import { LATEST_VALIDATION_RUN_ID } from "@/data/validation-results";
+import apiClient, { getApiErrorMessage } from "@/lib/axios";
+import { useDefaultProject } from "@/lib/use-default-project";
+import type { ValidationFieldRule } from "@/data/validation";
 
 export function AdvancedValidationView() {
   const router = useRouter();
-  const [sourceReady, setSourceReady] = useState(false);
+  const { project, loading: projectLoading } = useDefaultProject();
 
-  function handleSaveDraft() {
-    console.info("Save Draft clicked (mock)");
+  const [runId, setRunId] = useState<string | null>(null);
+  const [fields, setFields] = useState<string[]>([]);
+  const [rules, setRules] = useState<ValidationFieldRule[]>([]);
+  const [running, setRunning] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleUploaded = useCallback((id: string, extractedFields: string[]) => {
+    setRunId(id);
+    setFields(extractedFields);
+  }, []);
+
+  const handleRulesChange = useCallback((rows: ValidationFieldRule[]) => {
+    setRules(rows);
+  }, []);
+
+  async function handleRunValidation() {
+    if (!runId) return;
+    setRunning(true);
+    setError(null);
+
+    try {
+      await apiClient.put(
+        `/api/runs/${runId}/rules`,
+        rules.map((r) => ({
+          field_name: r.fieldName,
+          flag_key: r.flags.key,
+          flag_mandatory: r.flags.mandatory,
+          flag_null: r.flags.null,
+          flag_email: r.flags.email,
+          flag_mobile: r.flags.mobile,
+          flag_date: r.flags.date,
+          flag_special_chars: r.flags.specialChars,
+          case_format: r.config.caseFormat,
+          data_type: r.config.dataType,
+          max_length: r.config.length,
+          decimal_length: r.config.decimalLength,
+          regex: r.config.regex || null,
+          regex_prompt: r.config.regexPrompt || null,
+        })),
+      );
+
+      await apiClient.post(`/api/runs/${runId}/execute`);
+      router.push(`/validation_result/${runId}`);
+    } catch (err) {
+      setError(getApiErrorMessage(err, "Validation run failed"));
+      setRunning(false);
+    }
   }
 
-  function handleRunValidation() {
-    // Mock run — navigate to results for the newly created validation id
-    router.push(`/validation_result/${LATEST_VALIDATION_RUN_ID}`);
-  }
+  const sourceReady = fields.length > 0;
 
   return (
     <div className="flex min-h-[calc(100vh-4rem)] flex-col">
@@ -29,13 +73,22 @@ export function AdvancedValidationView() {
               Data Validation Rules
             </h2>
             <p className="text-base leading-6 text-on-surface-variant">
-              Configure validation logic and upload your source records to begin
-              validation.
+              Configure validation logic and upload your source records to begin validation.
             </p>
           </div>
 
-          <SourceUploadZone onFileSelected={() => setSourceReady(true)} />
-          <ValidationRulesTable />
+          {projectLoading || !project ? (
+            <p className="text-sm text-on-surface-variant">Loading project...</p>
+          ) : (
+            <>
+              <SourceUploadZone projectId={project.id} onUploaded={handleUploaded} />
+              <div className="mt-6">
+                <ValidationRulesTable fields={fields} onRulesChange={handleRulesChange} />
+              </div>
+            </>
+          )}
+
+          {error && <p className="mt-4 text-sm text-error">{error}</p>}
         </div>
       </div>
 
@@ -43,8 +96,7 @@ export function AdvancedValidationView() {
         <div className="text-[13px] leading-[18px] text-on-surface-variant">
           {sourceReady ? (
             <>
-              <span className="font-semibold text-primary">Source File</span>{" "}
-              ready for validation
+              <span className="font-semibold text-primary">Source File</span> ready for validation
             </>
           ) : (
             "Upload a source file to begin validation"
@@ -53,17 +105,19 @@ export function AdvancedValidationView() {
         <div className="flex flex-wrap gap-3">
           <button
             type="button"
-            onClick={handleSaveDraft}
-            className="rounded-lg border border-outline-variant bg-white px-6 py-2.5 text-xs font-semibold uppercase tracking-[0.02em] text-on-surface shadow-sm transition-colors hover:bg-surface-container-low"
+            disabled
+            title="Draft saving happens automatically once rules are configured"
+            className="rounded-lg border border-outline-variant bg-white px-6 py-2.5 text-xs font-semibold uppercase tracking-[0.02em] text-on-surface opacity-60 shadow-sm"
           >
             Save Draft
           </button>
           <button
             type="button"
             onClick={handleRunValidation}
-            className="inline-flex items-center gap-2 rounded-lg bg-primary-container px-6 py-2.5 text-xs font-semibold uppercase tracking-[0.02em] text-on-primary shadow-sm transition-colors hover:bg-primary"
+            disabled={!sourceReady || running}
+            className="inline-flex items-center gap-2 rounded-lg bg-primary-container px-6 py-2.5 text-xs font-semibold uppercase tracking-[0.02em] text-on-primary shadow-sm transition-colors hover:bg-primary disabled:opacity-50"
           >
-            Run Validation Rules
+            {running ? "Running..." : "Run Validation Rules"}
             <PlayArrowIcon className="h-[18px] w-[18px]" />
           </button>
         </div>

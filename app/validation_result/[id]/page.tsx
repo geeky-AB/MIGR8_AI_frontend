@@ -1,49 +1,53 @@
-import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+"use client";
+
+import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
 import { AppShell } from "@/components/layout/app-shell";
 import { ValidationResultsView } from "@/components/validation/validation-results-view";
-import {
-  getAllValidationResultIds,
-  getValidationResult,
-} from "@/data/validation-results";
+import apiClient, { getApiErrorMessage } from "@/lib/axios";
+import type { ValidationResultSummary } from "@/data/validation-results";
 
-type ValidationResultPageProps = {
-  params: Promise<{ id: string }>;
-};
+// This page can no longer be statically generated (generateStaticParams/
+// generateMetadata against the mock data file) because results now come
+// from a per-user, JWT-authenticated API call that only resolves in the
+// browser (the auth token lives in localStorage, not a server session).
+// If you want this rendered on the server instead, switch auth to an
+// httpOnly cookie and fetch with that cookie forwarded server-side.
 
-export function generateStaticParams() {
-  return getAllValidationResultIds().map((id) => ({ id }));
-}
+export default function ValidationResultPage() {
+  const params = useParams<{ id: string }>();
+  const [result, setResult] = useState<ValidationResultSummary | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-export async function generateMetadata({
-  params,
-}: ValidationResultPageProps): Promise<Metadata> {
-  const { id } = await params;
-  const result = getValidationResult(id);
+  useEffect(() => {
+    apiClient
+      .get<ValidationResultSummary>(`/api/runs/${params.id}/result`)
+      .then((res) => setResult(res.data))
+      .catch((err) => setError(getApiErrorMessage(err, "Not found")));
+  }, [params.id]);
 
-  return {
-    title: result
-      ? `${result.runName} Results | MIGR8 AI`
-      : "Validation Results | MIGR8 AI",
-    description:
-      "Analyze validation health score, error breakdowns, and exception details.",
-  };
-}
+  if (error) {
+    return (
+      <AppShell topbarTitle="Validation Results">
+        <p className="text-sm text-error">{error}</p>
+      </AppShell>
+    );
+  }
 
-export default async function ValidationResultPage({
-  params,
-}: ValidationResultPageProps) {
-  const { id } = await params;
-  const result = getValidationResult(id);
-
-  if (!result) notFound();
+  if (!result) {
+    return (
+      <AppShell topbarTitle="Validation Results">
+        <p className="text-sm text-on-surface-variant">Loading results...</p>
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell
       topbarLeading={
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <span className="truncate text-xs font-semibold uppercase tracking-[0.02em] leading-4 text-primary">
-            {result.projectName}
+            {result.projectLabel}
           </span>
         </div>
       }

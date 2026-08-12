@@ -12,9 +12,11 @@
 | Package name | `migr8-ai-frontend` |
 | Repo path | `MIGR8_AI_frontend/` (workspace: `MIGR8 AI frontend`) |
 | Purpose | Frontend for MIGR8 AI — SAP data migration assistant (UI from Google Stitch) |
-| Status | Auth, dashboard, and full validation, field mapping, and comparison flows (runs → setup → results) implemented (mock/static data); axios API client scaffolded for FastAPI backend |
+| Status | Auth + projects + validation wired to FastAPI via axios; field-mapping / comparison mostly mock |
 | Design source | Stitch project **Remix of MIGR8 AI Migration Assistant** (`11703829461598989849`) |
-| Git | `main` — scaffold → core screens → validation → field mapping E2E → comparison E2E → axios |
+| Git | `main` — UI flows + axios; auth/validation/projects API wiring |
+| API base | `NEXT_PUBLIC_API_BASE_URL` (default `http://localhost:8000`) |
+| Auth storage | `localStorage` key `migr8_token` |
 
 ---
 
@@ -32,14 +34,14 @@
 | Path alias | `@/*` → project root | Configured in `tsconfig.json` |
 | Design tooling | **Stitch MCP** (`@_davideast/stitch-mcp`) | Source of truth for UI |
 | HTTP client | **Axios 1.x** | Shared instance in `lib/axios.ts` |
-| Backend (planned) | **Python FastAPI** | Base URL via `NEXT_PUBLIC_API_BASE_URL` |
+| Backend | **Python FastAPI** | Auth, projects, validation live; field-mapping / comparison APIs TBD |
 
 ### Explicit non-choices (for now)
 
 - No `src/` directory — app lives at project root (`app/`)
 - No third-party UI kit (custom components only)
-- No real auth wiring, state library, or testing setup yet
-- Forms / uploads are mock/static only — API client is ready but not yet connected to screens
+- No global state library or testing setup yet
+- Field-mapping / comparison uploads remain mock (auth, projects, validation are live via axios)
 
 ---
 
@@ -215,6 +217,10 @@ MIGR8_AI_frontend/
 │   │   ├── app-shell.tsx        # Sidebar + topbar + mobile drawer
 │   │   ├── app-sidebar.tsx
 │   │   └── app-topbar.tsx
+│   ├── projects/
+│   │   ├── projects-view.tsx
+│   │   └── create-project-dialog.tsx
+│   ├── providers.tsx            # AuthProvider → ProjectProvider
 │   └── ui/
 │       ├── button.tsx
 │       ├── text-field.tsx
@@ -228,10 +234,15 @@ MIGR8_AI_frontend/
 │   ├── comparison-results.ts    # Review summaries, discrepancies, mock run IDs
 │   ├── field-mapping.ts         # Runs, schema cards (incl. sapFetch), topbar title
 │   ├── field-mapping-workspace.ts # Workspace rows, prospects, AI review mock data
-│   ├── validation.ts            # Runs, field rules, rule config types
-│   └── validation-results.ts    # Per-run result summaries + exceptions
+│   ├── validation.ts            # Types + helpers (+ regexPrompt); mock fixtures unused by live flow
+│   ├── validation-results.ts    # Legacy mock maps (unused once results are live)
+│   └── projects.ts              # MigrationProject type (+ optional mock fixtures)
+├── contexts/
+│   └── project-context.tsx      # Selected project (API-backed list/create)
 ├── lib/
-│   └── axios.ts                 # Shared axios instance for FastAPI backend calls
+│   ├── axios.ts                 # Shared axios instance + token helpers + error formatting
+│   ├── auth-context.tsx         # AuthProvider / useAuth
+│   └── use-default-project.ts   # Adapter: selected project for validation screens
 ├── public/
 │   ├── brand/migr8-logo.png
 │   ├── avatars/user.png
@@ -257,9 +268,9 @@ MIGR8_AI_frontend/
 Shared axios instance: `lib/axios.ts`. Import and use for all backend calls:
 
 ```ts
-import apiClient from "@/lib/axios";
+import apiClient, { setToken, clearToken, getApiErrorMessage } from "@/lib/axios";
 
-const { data } = await apiClient.get("/api/validation/runs");
+const { data } = await apiClient.get("/api/projects/");
 await apiClient.post("/api/auth/login", { email, password });
 ```
 
@@ -268,12 +279,25 @@ await apiClient.post("/api/auth/login", { email, password });
 | Env var | `NEXT_PUBLIC_API_BASE_URL` |
 | Default | `http://localhost:8000` (FastAPI dev default) |
 | Local config | `.env.local` (gitignored) |
-| Template | `.env.example` (committed) |
+| Auth header | `Authorization: Bearer <migr8_token>` via request interceptor |
+| Token storage | `localStorage` key `migr8_token` |
+| Selected project | `localStorage` key `migr8_selected_project_id` |
+
+### Wired vs mock
+
+| Area | Status |
+| --- | --- |
+| Auth (`/sign-in`, `/register`, `/api/auth/me`) | Live |
+| Projects (`/projects` list + create) | Live via `ProjectProvider` |
+| Validation list / upload / rules / execute / results / download | Live |
+| Field mapping / comparison | UI mock (friend's screens) |
+
+`AppProviders` wraps `AuthProvider` → `ProjectProvider`. Validation uses `useDefaultProject()` which reads the selected project from context.
 
 Notes:
 - `NEXT_PUBLIC_` prefix is required for client components (`"use client"`).
 - Restart `npm run dev` after changing env vars.
-- Request/response interceptors in `lib/axios.ts` are placeholders for auth tokens and centralized error handling.
+- FormData uploads clear default JSON `Content-Type` so multipart boundary is set correctly.
 
 ---
 
@@ -339,6 +363,16 @@ npm run lint     # ESLint
 ---
 
 ## Session Log
+
+### 2026-08-13 — Wire auth / projects / validation to FastAPI (push to friend repo)
+
+- Pulled friend `main` (comparison E2E + projects UI + schema upload local file selection).
+- Extended `lib/axios.ts` with Bearer token, FormData handling, `getApiErrorMessage`.
+- Added `lib/auth-context.tsx`; nested inside `AppProviders` with `ProjectProvider`.
+- Wired `/projects` create/list to `GET/POST /api/projects/`; selection persisted in localStorage.
+- Validation screens use selected project via `useDefaultProject()` adapter.
+- Field mapping / comparison left as friend's mock UI.
+- Updated `Project.md` status, API section, decisions, TBD.
 
 ### 2026-08-13 — Project.md full refresh (comparison E2E complete)
 
@@ -466,11 +500,12 @@ npm run lint     # ESLint
 4. **Stitch is UI source of truth** — match layout, spacing, typography, and color from Stitch HTML/screenshots.
 5. **Shared app chrome** — authenticated product screens use `AppShell`; nav stays while main content swaps.
 6. **Reuse before inventing** — extend existing `components/ui` and layout pieces; avoid duplicate components.
-7. **Mock data only** until APIs are wired — keep fixtures in `data/`; replace with `apiClient` calls when FastAPI endpoints are ready.
+7. **Auth, projects, and validation are API-wired via axios**; field-mapping / comparison stay mock until those APIs exist.
 8. **Page → view split** — route files stay thin (`metadata` + `AppShell` wrapper); screen logic lives in `components/*/`-view files.
 9. **Single axios instance** — import `apiClient` from `@/lib/axios`; do not create ad-hoc axios instances elsewhere.
-10. **Keep `Project.md` current** — after meaningful changes, update structure/routes/decisions and append a session log entry.
-11. Prefer small, focused changes over broad refactors unless requested.
+10. **Selected project is global** — `ProjectProvider` is source of truth; validation must not invent a parallel project ID.
+11. **Keep `Project.md` current** — after meaningful changes, update structure/routes/decisions and append a session log entry.
+12. Prefer small, focused changes over broad refactors unless requested.
 
 ---
 
@@ -478,8 +513,9 @@ npm run lint     # ESLint
 
 - Wire remaining sidebar routes: Reports, Profile, Settings
 - Replace placeholder `/` home (redirect to `/sign-in` or `/dashboard`?)
-- Wire screens to FastAPI endpoints (axios client ready in `lib/axios.ts`)
-- Real auth + API contracts
+- Real auth + projects + validation API contracts ✅; field-mapping / comparison APIs still TBD
+- Protect routes (redirect unauthenticated users)
+- Remove dead validation mock fixtures after cutover
 - Deployment target
 - Testing strategy
 

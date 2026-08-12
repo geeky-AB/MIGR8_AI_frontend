@@ -1,97 +1,79 @@
 "use client";
 
-import { useRef, useState, type ChangeEvent, type DragEvent } from "react";
-import { AddIcon, UploadFileIcon } from "@/components/ui/icons";
+import { useState, type DragEvent } from "react";
+import apiClient, { getApiErrorMessage } from "@/lib/axios";
 
 type SourceUploadZoneProps = {
-  onFileSelected?: (fileName: string) => void;
+  projectId: string;
+  onUploaded: (runId: string, fields: string[], fileName: string) => void;
 };
 
-export function SourceUploadZone({ onFileSelected }: SourceUploadZoneProps) {
-  const inputRef = useRef<HTMLInputElement>(null);
+export function SourceUploadZone({ projectId, onUploaded }: SourceUploadZoneProps) {
   const [fileName, setFileName] = useState<string | null>(null);
-  const [dragOver, setDragOver] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [dragActive, setDragActive] = useState(false);
 
-  function applyFile(file: File | undefined) {
+  async function applyFile(file: File | undefined) {
     if (!file) return;
+    setError(null);
     setFileName(file.name);
-    onFileSelected?.(file.name);
-    console.info("Validation source selected", { name: file.name });
-  }
+    setUploading(true);
 
-  function handleBrowse() {
-    inputRef.current?.click();
-  }
+    try {
+      const { data: created } = await apiClient.post<{ run_id: string }>(
+        `/api/runs/?project_id=${projectId}`,
+      );
 
-  function handleChange(event: ChangeEvent<HTMLInputElement>) {
-    applyFile(event.target.files?.[0]);
+      const formData = new FormData();
+      formData.append("file", file);
+      const { data: uploaded } = await apiClient.post<{ fields: string[] }>(
+        `/api/runs/${created.run_id}/upload`,
+        formData,
+      );
+
+      onUploaded(created.run_id, uploaded.fields, file.name);
+    } catch (err) {
+      setError(getApiErrorMessage(err, "Upload failed"));
+      setFileName(null);
+    } finally {
+      setUploading(false);
+    }
   }
 
   function handleDrop(event: DragEvent<HTMLDivElement>) {
     event.preventDefault();
-    setDragOver(false);
+    setDragActive(false);
     applyFile(event.dataTransfer.files?.[0]);
   }
 
   return (
     <div
-      role="button"
-      tabIndex={0}
-      onClick={handleBrowse}
-      onKeyDown={(event) => {
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          handleBrowse();
-        }
-      }}
-      onDragOver={(event) => {
-        event.preventDefault();
-        setDragOver(true);
-      }}
-      onDragLeave={() => setDragOver(false)}
+      onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
+      onDragLeave={() => setDragActive(false)}
       onDrop={handleDrop}
-      className={[
-        "group mb-8 flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-primary/30 bg-surface-container-lowest p-6 text-center transition-colors sm:p-8",
-        dragOver
-          ? "border-solid border-primary-container bg-surface-container"
-          : "hover:bg-primary-container/5",
-      ].join(" ")}
+      className={`flex flex-col items-center justify-center gap-3 rounded-card border-2 border-dashed p-10 text-center transition-colors ${
+        dragActive ? "border-primary bg-primary-container/5" : "border-outline-variant"
+      }`}
     >
-      <input
-        ref={inputRef}
-        type="file"
-        accept=".csv,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
-        className="hidden"
-        onChange={handleChange}
-        onClick={(event) => event.stopPropagation()}
-      />
+      <p className="text-sm text-on-surface-variant">
+        Drag and drop your source Excel/CSV file here, or
+      </p>
+      <label className="cursor-pointer rounded bg-primary-container px-4 py-2 text-sm font-semibold text-on-primary hover:bg-primary">
+        Browse Files
+        <input
+          type="file"
+          accept=".xlsx,.xls,.csv"
+          className="hidden"
+          onChange={(e) => applyFile(e.target.files?.[0])}
+        />
+      </label>
 
-      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary-container/10 transition-transform group-hover:scale-110">
-        <UploadFileIcon className="h-10 w-10 text-primary" />
-      </div>
-      <h3 className="mb-2 text-2xl font-semibold leading-8 text-on-surface">
-        Source File for Validation
-      </h3>
-      <p className="mb-6 max-w-md text-base leading-6 text-on-surface-variant">
-        Drag and drop your migration source file here, or click to browse your
-        local files.
-      </p>
-      <button
-        type="button"
-        onClick={(event) => {
-          event.stopPropagation();
-          handleBrowse();
-        }}
-        className="inline-flex items-center gap-2 rounded-lg bg-primary px-8 py-3 text-xs font-semibold uppercase tracking-[0.02em] text-on-primary shadow-md transition-all hover:bg-primary/90"
-      >
-        <AddIcon className="h-4 w-4" />
-        Select Source File
-      </button>
-      <p className="mt-4 font-mono text-xs font-medium leading-4 text-outline">
-        {fileName
-          ? `Selected: ${fileName}`
-          : "Supported formats: .xlsx, .csv"}
-      </p>
+      {uploading && <p className="text-xs text-on-surface-variant">Uploading and extracting columns...</p>}
+      {fileName && !uploading && !error && (
+        <p className="font-mono text-xs text-on-surface-variant">{fileName}</p>
+      )}
+      {error && <p className="text-xs text-error">{error}</p>}
     </div>
   );
 }
