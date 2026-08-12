@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { Migr8Logo } from "@/components/brand/migr8-logo";
 import { SignInForm } from "@/components/auth/sign-in-form";
 
@@ -17,7 +18,9 @@ export function SignInCard() {
         </p>
       </div>
 
-      <SignInForm />
+      <Suspense fallback={<p className="text-sm text-on-surface-variant">Loading…</p>}>
+        <SignInForm />
+      </Suspense>
 
       <div className="mt-8 text-center">
         <p className="text-sm leading-5 text-on-surface-variant">

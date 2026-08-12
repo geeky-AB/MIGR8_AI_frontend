@@ -12,7 +12,7 @@
 | Package name | `migr8-ai-frontend` |
 | Repo path | `MIGR8_AI_frontend/` (workspace: `MIGR8 AI frontend`) |
 | Purpose | Frontend for MIGR8 AI — SAP data migration assistant (UI from Google Stitch) |
-| Status | Auth, dashboard, and full validation, field mapping, and comparison flows (runs → setup → results) implemented (mock/static data); axios API client scaffolded for FastAPI backend |
+| Status | JWT auth wired (sign-in/register → token + user context + protected routes); dashboard and validation/field-mapping/comparison flows still use mock data for domain APIs |
 | Design source | Stitch project **Remix of MIGR8 AI Migration Assistant** (`11703829461598989849`) |
 | Git | `main` — scaffold → core screens → validation → field mapping E2E → comparison E2E → axios |
 
@@ -38,28 +38,31 @@
 
 - No `src/` directory — app lives at project root (`app/`)
 - No third-party UI kit (custom components only)
-- No real auth wiring, state library, or testing setup yet
-- Forms / uploads are mock/static only — API client is ready but not yet connected to screens
+- No state library or testing setup yet
+- Auth is real (JWT via FastAPI); domain screens (validation/mapping/compare) still use mock/static data
 
 ---
 
 ## Routes
 
+Public (no JWT): `/sign-in`, `/register`. All other product routes live under `app/(app)/` and require auth (`middleware.ts` cookie check + `AuthGuard`).
+
 | Route | Page file | View component | Notes |
 | --- | --- | --- | --- |
-| `/` | `app/page.tsx` | — | Default Next.js scaffold (not product UI) |
-| `/sign-in` | `app/sign-in/page.tsx` | `SignInCard` + `SystemStatus` | Standalone auth layout |
-| `/register` | `app/register/page.tsx` | `RegisterCard` | Standalone auth layout; linked ↔ Sign In |
-| `/dashboard` | `app/dashboard/page.tsx` | `DashboardView` | Uses shared `AppShell` |
-| `/compare` | `app/compare/page.tsx` | `ComparisonRunsList` | Prior runs + **New Comparison** |
-| `/compare/new` | `app/compare/new/page.tsx` | `ComparisonSetupView` | Reconciliation upload; from New Comparison |
-| `/compare/[id]` | `app/compare/[id]/page.tsx` | `ReconciliationReviewView` | Exception review; `generateStaticParams` |
-| `/field-mapping` | `app/field-mapping/page.tsx` | `FieldMappingRunsList` | Prior runs + **New Field Mapping** |
-| `/field-mapping/new` | `app/field-mapping/new/page.tsx` | `FieldMappingSetupView` + `SchemaUploadPanel` | Source/target upload + SAP fetch; topbar title |
-| `/field-mapping/[id]` | `app/field-mapping/[id]/page.tsx` | `FieldMappingWorkspaceView` | Multi-prospect mapping workspace; `generateStaticParams` |
-| `/validation` | `app/validation/page.tsx` | `ValidationRunsList` | Prior runs + **New Validation** |
-| `/validation/new` | `app/validation/new/page.tsx` | `AdvancedValidationView` | Rules table + upload zone |
-| `/validation_result/[id]` | `app/validation_result/[id]/page.tsx` | `ValidationResultsView` | Per-run results; `generateStaticParams` |
+| `/` | `app/page.tsx` | — | Redirects to `/dashboard` (also middleware-protected) |
+| `/sign-in` | `app/sign-in/page.tsx` | `SignInCard` + `SystemStatus` | Public; real JWT login |
+| `/register` | `app/register/page.tsx` | `RegisterCard` | Public; real JWT register |
+| `/dashboard` | `app/(app)/dashboard/page.tsx` | `DashboardView` | Protected; uses `AppShell` |
+| `/projects` | `app/(app)/projects/page.tsx` | `ProjectsView` | Protected |
+| `/compare` | `app/(app)/compare/page.tsx` | `ComparisonRunsList` | Prior runs + **New Comparison** |
+| `/compare/new` | `app/(app)/compare/new/page.tsx` | `ComparisonSetupView` | Reconciliation upload; from New Comparison |
+| `/compare/[id]` | `app/(app)/compare/[id]/page.tsx` | `ReconciliationReviewView` | Exception review; `generateStaticParams` |
+| `/field-mapping` | `app/(app)/field-mapping/page.tsx` | `FieldMappingRunsList` | Prior runs + **New Field Mapping** |
+| `/field-mapping/new` | `app/(app)/field-mapping/new/page.tsx` | `FieldMappingSetupView` + `SchemaUploadPanel` | Source/target upload + SAP fetch; topbar title |
+| `/field-mapping/[id]` | `app/(app)/field-mapping/[id]/page.tsx` | `FieldMappingWorkspaceView` | Multi-prospect mapping workspace; `generateStaticParams` |
+| `/validation` | `app/(app)/validation/page.tsx` | `ValidationRunsList` | Prior runs + **New Validation** |
+| `/validation/new` | `app/(app)/validation/new/page.tsx` | `AdvancedValidationView` | Rules table + upload zone |
+| `/validation_result/[id]` | `app/(app)/validation_result/[id]/page.tsx` | `ValidationResultsView` | Per-run results; `generateStaticParams` |
 
 ### App shell UX
 
@@ -161,32 +164,29 @@ Topbar: project name breadcrumb (`COMPARISON_PROJECT_NAME`). **Run Reconciliatio
 MIGR8_AI_frontend/
 ├── app/
 │   ├── globals.css              # Tailwind + Stitch Enterprise Blue tokens
-│   ├── layout.tsx               # Root layout (fonts + metadata)
-│   ├── page.tsx                 # Placeholder home
-│   ├── sign-in/page.tsx
-│   ├── register/page.tsx
-│   ├── dashboard/page.tsx
-│   ├── compare/
-│   │   ├── page.tsx             # Previous comparison runs
-│   │   ├── new/page.tsx         # Reconciliation Upload with Conditional Metadata
-│   │   └── [id]/page.tsx        # Reconciliation & Exception Review
-│   ├── field-mapping/
-│   │   ├── page.tsx             # Previous field mapping runs
-│   │   ├── new/page.tsx         # AI Field Mapping Setup
-│   │   └── [id]/page.tsx        # AI Field Mapping Workspace
-│   ├── validation/
-│   │   ├── page.tsx             # Previous validation runs
-│   │   └── new/page.tsx         # Advanced Validation & Results
-│   ├── validation_result/
-│   │   └── [id]/page.tsx        # Validation Results Analysis
+│   ├── layout.tsx               # Root layout (fonts + metadata + AppProviders)
+│   ├── page.tsx                 # Redirect → /dashboard
+│   ├── sign-in/page.tsx         # Public
+│   ├── register/page.tsx        # Public
+│   ├── (app)/                   # Protected route group (AuthGuard layout)
+│   │   ├── layout.tsx
+│   │   ├── dashboard/page.tsx
+│   │   ├── projects/page.tsx
+│   │   ├── compare/
+│   │   ├── field-mapping/
+│   │   ├── validation/
+│   │   └── validation_result/
 │   └── favicon.ico
+├── middleware.ts                # Cookie gate: migr8_token required except sign-in/register
 ├── components/
 │   ├── auth/
+│   │   ├── auth-guard.tsx       # Client guard + /me hydration gate
 │   │   ├── sign-in-card.tsx
-│   │   ├── sign-in-form.tsx
+│   │   ├── sign-in-form.tsx     # POST /api/auth/login
 │   │   ├── register-card.tsx
-│   │   ├── register-form.tsx
+│   │   ├── register-form.tsx    # POST /api/auth/register
 │   │   └── system-status.tsx    # Sign-in page footer status strip
+│   ├── providers.tsx            # AuthProvider → ProjectProvider
 │   ├── brand/
 │   │   └── migr8-logo.tsx       # Uses /brand/migr8-logo.png
 │   ├── dashboard/
@@ -230,8 +230,14 @@ MIGR8_AI_frontend/
 │   ├── field-mapping-workspace.ts # Workspace rows, prospects, AI review mock data
 │   ├── validation.ts            # Runs, field rules, rule config types
 │   └── validation-results.ts    # Per-run result summaries + exceptions
+├── contexts/
+│   ├── auth-context.tsx         # useAuth — user/token/login/register/logout
+│   └── project-context.tsx      # Selected project (mock list for now)
 ├── lib/
-│   └── axios.ts                 # Shared axios instance for FastAPI backend calls
+│   ├── axios.ts                 # Shared axios + Bearer + 401 → sign-in
+│   ├── auth-api.ts              # login / register / fetchMe
+│   ├── auth-storage.ts          # localStorage + migr8_token cookie sync
+│   └── auth-types.ts            # AuthUser / AuthResponse types
 ├── public/
 │   ├── brand/migr8-logo.png
 │   ├── avatars/user.png
@@ -273,7 +279,20 @@ await apiClient.post("/api/auth/login", { email, password });
 Notes:
 - `NEXT_PUBLIC_` prefix is required for client components (`"use client"`).
 - Restart `npm run dev` after changing env vars.
-- Request/response interceptors in `lib/axios.ts` are placeholders for auth tokens and centralized error handling.
+- Request interceptor attaches `Authorization: Bearer <token>` from `lib/auth-storage.ts`.
+- Response interceptor on `401` clears session and redirects to `/sign-in` (skips login/register endpoints).
+
+### Auth session
+
+| Piece | Behavior |
+| --- | --- |
+| Token | JWT from FastAPI login/register |
+| Storage | `localStorage` (`migr8_token`, `migr8_user`) + cookie `migr8_token` for middleware |
+| Context | `useAuth()` — available under `AppProviders` |
+| Middleware | Missing cookie → `/sign-in?next=…`; cookie on public auth pages → `/dashboard` |
+| AuthGuard | Validates via `GET /api/auth/me` on hydrate; blocks product UI until authenticated |
+| Post-auth | Sign-in/register → `/dashboard` (or `next` query on sign-in) |
+| Logout | Sidebar Profile menu → `POST /api/auth/logout` + clear session → `/sign-in` |
 
 ---
 
@@ -339,6 +358,17 @@ npm run lint     # ESLint
 ---
 
 ## Session Log
+
+### 2026-08-13 — Profile logout
+
+- Sidebar Profile opens a menu with Logout; calls `POST /api/auth/logout`, clears JWT/cookie, redirects to `/sign-in`.
+
+### 2026-08-13 — JWT auth context + protected routes
+
+- Wired sign-in/register to FastAPI (`/api/auth/login`, `/api/auth/register`).
+- Added `AuthProvider` / `useAuth`, `auth-storage` (localStorage + cookie), axios Bearer + 401 handling.
+- Added `middleware.ts` + `app/(app)` `AuthGuard` so unauthenticated users cannot open product URLs.
+- `/` redirects to `/dashboard`; signed-in users hitting auth pages redirect to dashboard.
 
 ### 2026-08-13 — Project.md full refresh (comparison E2E complete)
 
@@ -466,20 +496,20 @@ npm run lint     # ESLint
 4. **Stitch is UI source of truth** — match layout, spacing, typography, and color from Stitch HTML/screenshots.
 5. **Shared app chrome** — authenticated product screens use `AppShell`; nav stays while main content swaps.
 6. **Reuse before inventing** — extend existing `components/ui` and layout pieces; avoid duplicate components.
-7. **Mock data only** until APIs are wired — keep fixtures in `data/`; replace with `apiClient` calls when FastAPI endpoints are ready.
+7. **Auth is real; domain data still mock** — use `useAuth` + Bearer token for APIs; keep fixtures in `data/` until domain endpoints are wired.
 8. **Page → view split** — route files stay thin (`metadata` + `AppShell` wrapper); screen logic lives in `components/*/`-view files.
 9. **Single axios instance** — import `apiClient` from `@/lib/axios`; do not create ad-hoc axios instances elsewhere.
-10. **Keep `Project.md` current** — after meaningful changes, update structure/routes/decisions and append a session log entry.
-11. Prefer small, focused changes over broad refactors unless requested.
+10. **Protected product routes** — put authenticated pages under `app/(app)/`; keep `/sign-in` and `/register` public.
+11. **Keep `Project.md` current** — after meaningful changes, update structure/routes/decisions and append a session log entry.
+12. Prefer small, focused changes over broad refactors unless requested.
 
 ---
 
 ## Open Questions / TBD
 
-- Wire remaining sidebar routes: Reports, Profile, Settings
-- Replace placeholder `/` home (redirect to `/sign-in` or `/dashboard`?)
-- Wire screens to FastAPI endpoints (axios client ready in `lib/axios.ts`)
-- Real auth + API contracts
+- Wire remaining sidebar routes: Reports, Settings
+- Wire domain screens to FastAPI (projects, validation, mapping, compare)
+- httpOnly cookie / refresh tokens (currently Bearer + readable cookie for middleware)
 - Deployment target
 - Testing strategy
 

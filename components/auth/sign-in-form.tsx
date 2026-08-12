@@ -1,26 +1,51 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { LockIcon, MailIcon } from "@/components/ui/icons";
 import { TextField } from "@/components/ui/text-field";
+import { useAuth } from "@/contexts/auth-context";
 
-const MOCK_CREDENTIALS = {
-  email: "name@company.com",
-  password: "••••••••",
-};
+function getErrorMessage(error: unknown) {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "response" in error &&
+    typeof (error as { response?: { data?: { detail?: unknown } } }).response
+      ?.data?.detail === "string"
+  ) {
+    return (error as { response: { data: { detail: string } } }).response.data
+      .detail;
+  }
+  if (error instanceof Error && error.message) return error.message;
+  return "Unable to sign in. Please try again.";
+}
 
 export function SignInForm() {
+  const { login } = useAuth();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    // Mock auth — no backend yet
-    console.info("Sign in submitted", {
-      email: email || MOCK_CREDENTIALS.email,
-    });
+    setError(null);
+    setPending(true);
+
+    try {
+      await login({ email: email.trim(), password });
+      const next = searchParams.get("next");
+      router.replace(next && next.startsWith("/") ? next : "/dashboard");
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setPending(false);
+    }
   }
 
   return (
@@ -59,8 +84,14 @@ export function SignInForm() {
         }
       />
 
-      <Button type="submit" fullWidth>
-        Sign In
+      {error ? (
+        <p className="text-sm font-medium text-error" role="alert">
+          {error}
+        </p>
+      ) : null}
+
+      <Button type="submit" fullWidth disabled={pending}>
+        {pending ? "Signing in…" : "Sign In"}
       </Button>
     </form>
   );

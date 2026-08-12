@@ -13,6 +13,7 @@ import {
   RuleIcon,
   SettingsIcon,
 } from "@/components/ui/icons";
+import { ProfileMenu } from "@/components/layout/profile-menu";
 import { useProject } from "@/contexts/project-context";
 import {
   SIDEBAR_FOOTER_NAV,
@@ -153,15 +154,18 @@ export function AppSidebar({ className = "", onNavigate }: AppSidebarProps) {
         ))}
       </div>
 
-      <div className="mt-auto space-y-1 border-t border-outline-variant pt-6">
-        {SIDEBAR_FOOTER_NAV.map((item) => (
-          <NavLink
-            key={item.label}
-            item={item}
-            active={isActivePath(pathname, item)}
-            onNavigate={onNavigate}
-          />
-        ))}
+      <div className="mt-auto space-y-1 overflow-visible border-t border-outline-variant pt-6">
+        <ProfileMenu variant="sidebar" onNavigate={onNavigate} />
+        {SIDEBAR_FOOTER_NAV.filter((item) => item.label !== "Profile").map(
+          (item) => (
+            <NavLink
+              key={item.label}
+              item={item}
+              active={isActivePath(pathname, item)}
+              onNavigate={onNavigate}
+            />
+          ),
+        )}
       </div>
     </nav>
   );

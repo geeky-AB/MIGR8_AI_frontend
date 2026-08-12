@@ -1,24 +1,55 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { VisibilityIcon, VisibilityOffIcon } from "@/components/ui/icons";
 import { PasswordStrengthMeter } from "@/components/ui/password-strength-meter";
 import { TextField } from "@/components/ui/text-field";
+import { useAuth } from "@/contexts/auth-context";
+
+function getErrorMessage(error: unknown) {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "response" in error &&
+    typeof (error as { response?: { data?: { detail?: unknown } } }).response
+      ?.data?.detail === "string"
+  ) {
+    return (error as { response: { data: { detail: string } } }).response.data
+      .detail;
+  }
+  if (error instanceof Error && error.message) return error.message;
+  return "Unable to register. Please try again.";
+}
 
 export function RegisterForm() {
+  const { register } = useAuth();
+  const router = useRouter();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    // Mock registration — no backend yet
-    console.info("Register submitted", {
-      fullName: fullName || "Jane Doe",
-      email: email || "jane@company.com",
-    });
+    setError(null);
+    setPending(true);
+
+    try {
+      await register({
+        fullName: fullName.trim(),
+        email: email.trim(),
+        password,
+      });
+      router.replace("/dashboard");
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setPending(false);
+    }
   }
 
   return (
@@ -75,8 +106,14 @@ export function RegisterForm() {
         <PasswordStrengthMeter password={password} />
       </div>
 
-      <Button type="submit" size="md" fullWidth>
-        Register
+      {error ? (
+        <p className="text-sm font-medium text-error" role="alert">
+          {error}
+        </p>
+      ) : null}
+
+      <Button type="submit" size="md" fullWidth disabled={pending}>
+        {pending ? "Creating account…" : "Register"}
       </Button>
     </form>
   );

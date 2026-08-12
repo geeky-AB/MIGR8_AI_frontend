@@ -1,6 +1,8 @@
-import Image from "next/image";
+"use client";
+
 import type { ReactNode } from "react";
 import { HelpOutlineIcon, MenuIcon, SearchIcon } from "@/components/ui/icons";
+import { ProfileMenu } from "@/components/layout/profile-menu";
 
 type AppTopbarProps = {
   onMenuClick?: () => void;
@@ -51,15 +53,7 @@ export function AppTopbar({ onMenuClick, title, leading }: AppTopbarProps) {
         >
           <HelpOutlineIcon />
         </button>
-        <div className="ml-2 h-8 w-8 cursor-pointer overflow-hidden rounded-full border border-outline-variant bg-surface-container-high">
-          <Image
-            src="/avatars/user.png"
-            alt="User avatar"
-            width={32}
-            height={32}
-            className="h-full w-full object-cover"
-          />
-        </div>
+        <ProfileMenu variant="topbar" />
       </div>
     </header>
   );
