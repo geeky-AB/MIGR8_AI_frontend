@@ -6,7 +6,7 @@ import { VALIDATION_PROJECT_NAME } from "@/data/validation";
 export const metadata: Metadata = {
   title: "Data Validation Rules | MIGR8 AI",
   description:
-    "Configure validation logic and upload source records to begin validation.",
+    "Name a validation run, configure validation logic, and upload source records to begin validation.",
 };
 
 export default function NewValidationPage() {

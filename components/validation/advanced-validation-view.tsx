@@ -5,6 +5,7 @@ import { useCallback, useState } from "react";
 import { SourceUploadZone } from "@/components/validation/source-upload-zone";
 import { ValidationRulesTable } from "@/components/validation/validation-rules-table";
 import { PlayArrowIcon } from "@/components/ui/icons";
+import { TextField } from "@/components/ui/text-field";
 import apiClient, { getApiErrorMessage } from "@/lib/axios";
 import { useDefaultProject } from "@/lib/use-default-project";
 import type { ValidationFieldRule } from "@/data/validation";
@@ -13,6 +14,7 @@ export function AdvancedValidationView() {
   const router = useRouter();
   const { project, loading: projectLoading } = useDefaultProject();
 
+  const [runName, setRunName] = useState("");
   const [runId, setRunId] = useState<string | null>(null);
   const [fields, setFields] = useState<string[]>([]);
   const [rules, setRules] = useState<ValidationFieldRule[]>([]);
@@ -63,6 +65,7 @@ export function AdvancedValidationView() {
   }
 
   const sourceReady = fields.length > 0;
+  const nameLocked = Boolean(runId);
 
   return (
     <div className="flex min-h-[calc(100vh-4rem)] flex-col">
@@ -73,7 +76,7 @@ export function AdvancedValidationView() {
               Data Validation Rules
             </h2>
             <p className="text-base leading-6 text-on-surface-variant">
-              Configure validation logic and upload your source records to begin validation.
+              Name this run, then configure validation logic and upload your source records.
             </p>
           </div>
 
@@ -81,7 +84,30 @@ export function AdvancedValidationView() {
             <p className="text-sm text-on-surface-variant">Loading project...</p>
           ) : (
             <>
-              <SourceUploadZone projectId={project.id} onUploaded={handleUploaded} />
+              <div className="mb-6 max-w-xl">
+                <TextField
+                  id="validation-run-name"
+                  name="validationRunName"
+                  label="Validation Run Name"
+                  placeholder="e.g. Customer master — full source check"
+                  value={runName}
+                  onChange={(event) => setRunName(event.target.value)}
+                  required
+                  disabled={nameLocked}
+                  maxLength={120}
+                  autoComplete="off"
+                />
+                <p className="mt-1.5 text-xs leading-4 text-on-surface-variant">
+                  Must be unique within this project.
+                  {nameLocked ? " Locked after the source file is uploaded." : null}
+                </p>
+              </div>
+
+              <SourceUploadZone
+                projectId={project.id}
+                runName={runName}
+                onUploaded={handleUploaded}
+              />
               <div className="mt-6">
                 <ValidationRulesTable fields={fields} onRulesChange={handleRulesChange} />
               </div>
@@ -97,9 +123,17 @@ export function AdvancedValidationView() {
           {sourceReady ? (
             <>
               <span className="font-semibold text-primary">Source File</span> ready for validation
+              {runName.trim() ? (
+                <>
+                  {" "}
+                  · <span className="font-semibold text-on-surface">{runName.trim()}</span>
+                </>
+              ) : null}
             </>
-          ) : (
+          ) : runName.trim() ? (
             "Upload a source file to begin validation"
+          ) : (
+            "Enter a unique run name, then upload a source file"
           )}
         </div>
         <div className="flex flex-wrap gap-3">
