@@ -63,7 +63,7 @@ Public (no JWT): `/sign-in`, `/register`. All other product routes live under `a
 | `/field-mapping/new` | `app/(app)/field-mapping/new/page.tsx` | `FieldMappingSetupView` + `SchemaUploadPanel` | Source/target upload + SAP fetch; topbar title |
 | `/field-mapping/[id]` | `app/(app)/field-mapping/[id]/page.tsx` | `FieldMappingWorkspaceView` | Multi-prospect mapping workspace; `generateStaticParams` |
 | `/validation` | `app/(app)/validation/page.tsx` | `ValidationRunsList` | Prior runs + **New Validation** |
-| `/validation/new` | `app/(app)/validation/new/page.tsx` | `AdvancedValidationView` | Rules table + upload zone |
+| `/validation/new` | `app/(app)/validation/new/page.tsx` | `AdvancedValidationView` | Run name + rules table + upload zone |
 | `/validation_result/[id]` | `app/(app)/validation_result/[id]/page.tsx` | `ValidationResultsView` | Per-run results; `generateStaticParams` |
 
 ### App shell UX
@@ -75,7 +75,7 @@ Public (no JWT): `/sign-in`, `/register`. All other product routes live under `a
 5. **Mobile:** sidebar is hidden on small screens; hamburger opens a drawer overlay (`AppShell` state).
 6. **Validation flow:**
    - `/validation` (runs list) → click a prior run → `/validation_result/{run.id}`
-   - `/validation` → **New Validation** → `/validation/new` → **Run Validation Rules** → `/validation_result/run-new`
+   - `/validation` → **New Validation** → `/validation/new` (unique run name → upload → rules) → **Run Validation Rules** → `/validation_result/{run.id}`
 7. **Field Mapping flow:**
    - `/field-mapping` (runs list) → click a prior run → `/field-mapping/{run.id}`
    - `/field-mapping` → **New Field Mapping** → `/field-mapping/new` → **Start Mapping** → `/field-mapping/map-new`
@@ -295,6 +295,15 @@ await apiClient.post("/api/auth/login", { email, password });
 
 `AppProviders` wraps `AuthProvider` → `ProjectProvider`. Validation uses `useDefaultProject()` which reads the selected project from context.
 
+### Validation run create contract
+
+| Item | Value |
+| --- | --- |
+| Create | `POST /api/runs/?project_id={id}` with JSON body `{ "name": "<trimmed>" }` |
+| Uniqueness | Name must be unique **per project**; backend should return `409` with a clear `detail` if duplicate |
+| List | `GET /api/projects/{id}/runs` returns `name` (shown on `/validation`) |
+| UI | `/validation/new` requires name before source upload; name locks after upload succeeds |
+
 Notes:
 - `NEXT_PUBLIC_` prefix is required for client components (`"use client"`).
 - Restart `npm run dev` after changing env vars.
@@ -377,6 +386,13 @@ npm run lint     # ESLint
 ---
 
 ## Session Log
+
+### 2026-08-13 — Unique validation run names
+
+- `/validation/new` collects a **Validation Run Name** before source upload.
+- `POST /api/runs/?project_id=...` now sends `{ name }`; upload disabled until name is non-empty.
+- Name field locks after a run is created/uploaded; duplicate names should surface backend `409` via `getApiErrorMessage`.
+- Documented create contract under API client section (backend still needs required `name` + unique `(project_id, name)`).
 
 ### 2026-08-13 — Profile logout
 
@@ -519,8 +535,10 @@ npm run lint     # ESLint
 8. **Page → view split** — route files stay thin (`metadata` + `AppShell` wrapper); screen logic lives in `components/*/`-view files.
 9. **Single axios instance** — import `apiClient` from `@/lib/axios`; do not create ad-hoc axios instances elsewhere.
 10. **Protected product routes** — put authenticated pages under `app/(app)/`; keep `/sign-in` and `/register` public.
-11. **Keep `Project.md` current** — after meaningful changes, update structure/routes/decisions and append a session log entry.
-12. Prefer small, focused changes over broad refactors unless requested.
+11. **Selected project is global** — `ProjectProvider` is source of truth; validation must not invent a parallel project ID.
+12. **Validation run names are user-provided and unique per project** — UI requires `name` on create; backend must enforce uniqueness (prefer `409` on conflict).
+13. **Keep `Project.md` current** — after meaningful changes, update structure/routes/decisions and append a session log entry.
+14. Prefer small, focused changes over broad refactors unless requested.
 
 ---
 
@@ -528,7 +546,9 @@ npm run lint     # ESLint
 
 - Wire remaining sidebar routes: Reports, Settings
 - Wire domain screens to FastAPI (projects, validation, mapping, compare)
+- Backend: require `name` on `POST /api/runs/` + unique `(project_id, name)` (frontend already sends `{ name }`)
 - httpOnly cookie / refresh tokens (currently Bearer + readable cookie for middleware)
+- Remove dead validation mock fixtures after cutover
 - Deployment target
 - Testing strategy
 
